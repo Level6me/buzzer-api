@@ -300,19 +300,14 @@
             </button>
           </div>
 
-          <!-- Real-time HUD Badges & Web Audio Button -->
+          <!-- Real-time HUD Badges (全端可见并加宽防溢出) -->
           <div class="flex items-center gap-2 flex-wrap text-xs font-mono">
             <div id="hud-badges" class="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5">
-              <span id="hud-freq" class="w-[98px] text-center inline-block px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">频率: 0 Hz</span>
-              <span id="hud-note" class="w-[82px] text-center inline-block px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">音符: --</span>
-              <span id="hud-period" class="w-[98px] text-center hidden sm:inline-block px-2 py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">周期: -- ms</span>
-              <span id="hud-duty" class="w-[80px] text-center hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">占空比: 0%</span>
+              <span id="hud-freq" class="w-[112px] text-center inline-block px-2.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">频率: 0 Hz</span>
+              <span id="hud-note" class="w-[85px] text-center inline-block px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">音符: --</span>
+              <span id="hud-period" class="w-[120px] text-center inline-block px-2.5 py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">周期: -- ms</span>
+              <span id="hud-duty" class="w-[92px] text-center inline-block px-2.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">占空比: 0%</span>
             </div>
-
-            <button id="btn-audio-sync" onclick="toggleWebAudioSync()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-700 text-slate-300 hover:border-cyan-500 transition-all flex items-center gap-1.5 active:scale-95" title="在当前浏览器扬声器同步发声试听">
-              <span id="audio-sync-icon">🔇</span>
-              <span id="audio-sync-text">网页伴奏: 关</span>
-            </button>
           </div>
         </div>
 
@@ -1174,83 +1169,10 @@
       }
     }
 
-    // Web Audio Engine (Authentic Browser Synthesis & DSP)
-    function initWebAudio() {
-      if (!audioCtx) {
-        try {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) {
-            audioCtx = new AudioContextClass();
-            webAnalyser = audioCtx.createAnalyser();
-            webAnalyser.fftSize = 1024;
-            webAnalyser.smoothingTimeConstant = 0.8;
-
-            webOsc = audioCtx.createOscillator();
-            webOsc.type = 'square';
-            webOsc.frequency.setValueAtTime(440, audioCtx.currentTime);
-
-            webGain = audioCtx.createGain();
-            webGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            webOsc.connect(webGain);
-            webGain.connect(webAnalyser);
-
-            speakerGain = audioCtx.createGain();
-            speakerGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            webOsc.connect(speakerGain);
-            speakerGain.connect(audioCtx.destination);
-
-            webOsc.start();
-          }
-        } catch (e) {
-          console.warn('Web Audio init failed:', e);
-        }
-      }
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
-
-    function toggleWebAudioSync() {
-      initWebAudio();
-      isWebAudioMuted = !isWebAudioMuted;
-      const icon = document.getElementById('audio-sync-icon');
-      const text = document.getElementById('audio-sync-text');
-      const btn = document.getElementById('btn-audio-sync');
-      if (isWebAudioMuted) {
-        if (speakerGain && audioCtx) {
-          speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
-        }
-        icon.innerText = '🔇';
-        text.innerText = '网页伴奏: 关';
-        btn.classList.remove('bg-cyan-500', 'text-white', 'border-cyan-400');
-        btn.classList.add('bg-slate-900', 'text-slate-300', 'border-slate-700');
-        showToast('已关闭网页伴奏 (仅硬件发声)', '🔇');
-      } else {
-        if (speakerGain && audioCtx) {
-          const vol = (targetFrequency > 0 && isPlayingAudio) ? 0.12 : 0;
-          speakerGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.01);
-        }
-        icon.innerText = '🔊';
-        text.innerText = '网页伴奏: 开';
-        btn.classList.add('bg-cyan-500', 'text-white', 'border-cyan-400');
-        btn.classList.remove('bg-slate-900', 'text-slate-300', 'border-slate-700');
-        showToast('已开启网页伴奏 (浏览器同步发声)', '🔊');
-      }
-    }
-
-    function syncWebAudioNodes(freq, isPlaying) {
-      if (!audioCtx || !webOsc) return;
-      if (freq > 0 && isPlaying) {
-        webOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.005);
-        if (webGain) webGain.gain.setTargetAtTime(0.5, audioCtx.currentTime, 0.005);
-        if (speakerGain && !isWebAudioMuted) {
-          speakerGain.gain.setTargetAtTime(0.12, audioCtx.currentTime, 0.005);
-        }
-      } else {
-        if (webGain) webGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.005);
-        if (speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.005);
-      }
-    }
+    // Web Audio Engine (已按需移除伴奏合成，保留空桩函数确保兼容性)
+    function initWebAudio() {}
+    function toggleWebAudioSync() {}
+    function syncWebAudioNodes(freq, isPlaying) {}
 
     // =========================================================================
     // 设备与多 Token 认证管理引擎 (Multi-Device API Token Management)
