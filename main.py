@@ -2,6 +2,7 @@ import asyncio
 import collections
 import json
 import os
+import secrets
 import time
 from typing import Optional, List, Any, Union
 
@@ -13,11 +14,87 @@ from pydantic import BaseModel
 from buzzer import Buzzer, NOTES
 from melodies import MELODIES, MELODY_META
 
-app = FastAPI(title='Raspberry Pi Buzzer API & Web Console', version='2.0.0')
+app = FastAPI(title='Raspberry Pi Buzzer API & Web Console', version='2.1.0')
 buzzer = Buzzer()
 play_lock = asyncio.Lock()
 API_TOKEN = os.environ.get('BUZZER_API_TOKEN', '')
 MAX_DUTY = 0.3  # volume=100 时对应的占空比（避免破音）
+
+# 多设备 Token 持久化配置
+DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+TOKENS_FILE = os.path.join(DATA_DIR, 'tokens.json')
+devices_cache: List[dict] = []
+
+def load_devices() -> List[dict]:
+    global devices_cache
+    if os.path.exists(TOKENS_FILE):
+        try:
+            with open(TOKENS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                devices_cache = data.get('devices', [])
+        except Exception as e:
+            print(f"[Devices] Error loading {TOKENS_FILE}: {e}")
+            devices_cache = []
+    else:
+        devices_cache = []
+    return devices_cache
+
+def save_devices():
+    try:
+        tmp_file = TOKENS_FILE + '.tmp'
+        with open(tmp_file, 'w', encoding='utf-8') as f:
+            json.dump({'devices': devices_cache}, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_file, TOKENS_FILE)
+    except Exception as e:
+        print(f"[Devices] Error saving {TOKENS_FILE}: {e}")
+
+# 初始化载入设备
+load_devices()
+
+def is_token_required() -> bool:
+    """若配置了环境变量 Token 或存在任意处于启用状态的设备 Token，则强制开启 API 鉴权。"""
+    if API_TOKEN:
+        return True
+    return any(d.get('enabled', True) for d in devices_cache)
+
+def find_device_by_token(token: str) -> Optional[dict]:
+    """通过 Token 匹配设备；若配置了环境变量 Token 且匹配，返回虚拟环境变量设备。"""
+    if not token:
+        return None
+    for dev in devices_cache:
+        if dev.get('token') == token:
+            return dev
+    if API_TOKEN and token == API_TOKEN:
+        return {
+            'id': 'env_master',
+            'name': '系统主Token (Env)',
+            'token': API_TOKEN,
+            'enabled': True,
+            'is_env': True,
+            'call_count': 0,
+            'total_duration': 0.0,
+            'created_at': 'System Env',
+            'last_used_at': None,
+            'last_ip': None
+        }
+    return None
+
+def update_device_usage(device_id: str, duration: float, client_ip: str):
+    """更新指定设备的统计数据（调用次数、累计发声时长、最近活跃时间与来源 IP）"""
+    if not device_id or device_id == 'env_master':
+        return
+    updated = False
+    for dev in devices_cache:
+        if dev.get('id') == device_id:
+            dev['call_count'] = dev.get('call_count', 0) + 1
+            dev['total_duration'] = round(dev.get('total_duration', 0.0) + (duration or 0.0), 2)
+            dev['last_used_at'] = time.strftime('%Y-%m-%d %H:%M:%S')
+            dev['last_ip'] = client_ip
+            updated = True
+            break
+    if updated:
+        save_devices()
+
 
 # SSE 广播订阅管理
 main_event_loop: Optional[asyncio.AbstractEventLoop] = None
@@ -65,16 +142,26 @@ async def on_shutdown():
 # 内存日志队列（保留最近 50 条播放记录）
 history_log = collections.deque(maxlen=50)
 
-def record_history(event_type: str, detail: str, duration: float, volume: Optional[int], duty: Optional[float], client_ip: str):
+def record_history(event_type: str, detail: str, duration: float, volume: Optional[int], duty: Optional[float], client_ip: str, device: Optional[dict] = None):
+    device_name = device.get('name') if device else None
+    device_id = device.get('id') if device else None
+
+    # 同步更新设备统计指标
+    if device and not device.get('is_env'):
+        update_device_usage(device_id, duration or 0.0, client_ip)
+
     record = {
         'id': f"log_{int(time.time() * 1000)}",
         'time': time.strftime('%H:%M:%S'),
+        'timestamp': time.time(),
         'type': event_type,
         'detail': detail,
         'duration': round(duration, 2) if duration else None,
         'volume': volume if volume is not None else (int((duty or 0.1) / MAX_DUTY * 100) if duty else 33),
         'duty': round(duty, 4) if duty is not None else None,
-        'client': client_ip or '127.0.0.1'
+        'client': client_ip or '127.0.0.1',
+        'device_name': device_name or '本地/未分配设备',
+        'device_id': device_id or 'unknown'
     }
     history_log.appendleft(record)
 
@@ -169,10 +256,24 @@ class PianoReleaseRequest(BaseModel):
     note: Optional[str] = None
 
 
+class CreateDeviceRequest(BaseModel):
+    name: str
+    token: Optional[str] = None
+
+
+class RenameDeviceRequest(BaseModel):
+    name: str
+
+
 @app.middleware('http')
 async def token_check(request: Request, call_next):
-    # 静态文件、根路径与只读状态/SSE接口免 Token 验证
     path = request.url.path
+    token = request.headers.get('X-API-Token') or request.query_params.get('token') or ''
+    device = find_device_by_token(token)
+    request.state.device = device
+    request.state.token = token
+
+    # 静态文件、根路径与只读状态/SSE接口免 Token 验证
     if (path == '/' or 
         path == '/health' or 
         path == '/api/status' or 
@@ -181,15 +282,16 @@ async def token_check(request: Request, call_next):
         path == '/api/notes' or 
         path == '/api/system' or 
         path == '/api/history' or 
+        (path == '/api/devices' and request.method == 'GET') or
         path.startswith('/static') or 
         path == '/favicon.ico'):
         return await call_next(request)
 
-    if API_TOKEN:
-        token = request.headers.get('X-API-Token') or request.query_params.get('token')
-        if token != API_TOKEN:
-            return JSONResponse({'error': 'unauthorized', 'message': 'Invalid or missing API Token'}, status_code=401)
-            
+    # 检查是否启用了 Token 校验
+    if is_token_required():
+        if not device or not device.get('enabled', True):
+            return JSONResponse({'error': 'unauthorized', 'message': 'Invalid, missing or disabled API Token'}, status_code=401)
+
     return await call_next(request)
 
 
@@ -216,7 +318,7 @@ async def health():
 @app.get('/api/status')
 async def status():
     st = buzzer.get_status()
-    st['token_required'] = bool(API_TOKEN)
+    st['token_required'] = is_token_required()
     st['system'] = get_system_metrics()
     return st
 
@@ -229,7 +331,7 @@ async def events_stream(request: Request):
 
     # 初次连接时推送一次当前完整状态
     init_state = buzzer.get_status()
-    init_state['token_required'] = bool(API_TOKEN)
+    init_state['token_required'] = is_token_required()
     init_state['system'] = get_system_metrics()
     await q.put(init_state)
 
@@ -251,7 +353,7 @@ async def events_stream(request: Request):
                     if now - last_sys_heartbeat >= 2.5:
                         last_sys_heartbeat = now
                         heartbeat = buzzer.get_status()
-                        heartbeat['token_required'] = bool(API_TOKEN)
+                        heartbeat['token_required'] = is_token_required()
                         heartbeat['system'] = get_system_metrics()
                         yield f"data: {json.dumps(heartbeat, ensure_ascii=False)}\n\n"
                     else:
@@ -306,6 +408,168 @@ async def get_history():
     return {'history': list(history_log)}
 
 
+# ==============================================================================
+# 多设备 Token 管理与统计 API
+# ==============================================================================
+
+@app.get('/api/devices')
+async def list_devices():
+    """获取所有已登记的设备列表与整体统计看板数据"""
+    total_devices = len(devices_cache)
+    active_devices = sum(1 for d in devices_cache if d.get('enabled', True))
+    total_calls = sum(d.get('call_count', 0) for d in devices_cache)
+    total_duration = round(sum(d.get('total_duration', 0.0) for d in devices_cache), 2)
+
+    display_devices = list(devices_cache)
+    if API_TOKEN:
+        display_devices.insert(0, {
+            'id': 'env_master',
+            'name': '系统环境变量 (Master Token)',
+            'token': API_TOKEN[:4] + '****' + API_TOKEN[-4:] if len(API_TOKEN) > 8 else '********',
+            'enabled': True,
+            'is_env': True,
+            'created_at': 'System Env',
+            'last_used_at': None,
+            'last_ip': None,
+            'call_count': 0,
+            'total_duration': 0.0
+        })
+
+    return {
+        'token_required': is_token_required(),
+        'summary': {
+            'total_devices': total_devices + (1 if API_TOKEN else 0),
+            'active_devices': active_devices + (1 if API_TOKEN else 0),
+            'total_calls': total_calls,
+            'total_duration': total_duration
+        },
+        'devices': display_devices
+    }
+
+
+@app.post('/api/devices')
+async def create_device(req: CreateDeviceRequest):
+    """为指定设备创建并分配新的 API Token（支持自动随机生成或指定）"""
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(400, '设备名称不能为空')
+
+    token = (req.token or '').strip()
+    if token:
+        if len(token) < 4:
+            raise HTTPException(400, 'Token 长度至少为 4 个字符')
+        if find_device_by_token(token):
+            raise HTTPException(400, '该 Token 已被其他设备使用，请更换或留空自动生成')
+    else:
+        token = f"bz_live_{secrets.token_hex(12)}"
+
+    new_dev = {
+        'id': f"dev_{secrets.token_hex(6)}",
+        'name': name,
+        'token': token,
+        'enabled': True,
+        'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'last_used_at': None,
+        'last_ip': None,
+        'call_count': 0,
+        'total_duration': 0.0
+    }
+    devices_cache.append(new_dev)
+    save_devices()
+    return {'ok': True, 'device': new_dev}
+
+
+@app.delete('/api/devices/{device_id}')
+async def delete_device(device_id: str):
+    """删除指定设备的 Token"""
+    if device_id == 'env_master':
+        raise HTTPException(400, '系统环境变量 Token 无法删除')
+
+    target = None
+    for dev in devices_cache:
+        if dev.get('id') == device_id:
+            target = dev
+            break
+
+    if not target:
+        raise HTTPException(404, f'未找到设备: {device_id}')
+
+    devices_cache.remove(target)
+    save_devices()
+    return {'ok': True, 'deleted': device_id}
+
+
+@app.post('/api/devices/{device_id}/toggle')
+async def toggle_device(device_id: str):
+    """启用 / 禁用指定设备的 Token"""
+    if device_id == 'env_master':
+        raise HTTPException(400, '系统环境变量 Token 无法禁用')
+
+    target = None
+    for dev in devices_cache:
+        if dev.get('id') == device_id:
+            target = dev
+            break
+
+    if not target:
+        raise HTTPException(404, f'未找到设备: {device_id}')
+
+    target['enabled'] = not target.get('enabled', True)
+    save_devices()
+    return {'ok': True, 'device': target}
+
+
+@app.post('/api/devices/{device_id}/reset')
+async def reset_device_stats(device_id: str):
+    """重置指定设备的使用统计（调用次数、发声时长等归零）"""
+    if device_id == 'env_master':
+        raise HTTPException(400, '系统环境变量 Token 无需重置统计')
+
+    target = None
+    for dev in devices_cache:
+        if dev.get('id') == device_id:
+            target = dev
+            break
+
+    if not target:
+        raise HTTPException(404, f'未找到设备: {device_id}')
+
+    target['call_count'] = 0
+    target['total_duration'] = 0.0
+    target['last_used_at'] = None
+    target['last_ip'] = None
+    save_devices()
+    return {'ok': True, 'device': target}
+
+
+@app.post('/api/devices/{device_id}/rename')
+async def rename_device(device_id: str, req: RenameDeviceRequest):
+    """修改指定设备名称"""
+    if device_id == 'env_master':
+        raise HTTPException(400, '系统环境变量 Token 无法重命名')
+
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(400, '设备名称不能为空')
+
+    target = None
+    for dev in devices_cache:
+        if dev.get('id') == device_id:
+            target = dev
+            break
+
+    if not target:
+        raise HTTPException(404, f'未找到设备: {device_id}')
+
+    target['name'] = name
+    save_devices()
+    return {'ok': True, 'device': target}
+
+
+# ==============================================================================
+# 蜂鸣器发声控制接口
+# ==============================================================================
+
 @app.post('/api/play/tone')
 async def play_tone(req: ToneRequest, request: Request):
     if not (20 <= req.frequency <= 5000):
@@ -315,7 +579,8 @@ async def play_tone(req: ToneRequest, request: Request):
 
     client_ip = request.client.host if request.client else '127.0.0.1'
     duty = resolve_duty(req.volume, req.duty)
-    record_history('单音 (Tone)', f'{int(req.frequency)} Hz', req.duration, req.volume, duty, client_ip)
+    device = getattr(request.state, 'device', None)
+    record_history('单音 (Tone)', f'{int(req.frequency)} Hz', req.duration, req.volume, duty, client_ip, device)
 
     async with play_lock:
         await asyncio.to_thread(buzzer.play_tone, req.frequency, req.duration, duty)
@@ -342,7 +607,8 @@ async def play_melody(req: MelodyRequest, request: Request):
     est_duration = sum(item[1] for item in notes if isinstance(item, (list, tuple)) and len(item) >= 2)
     client_ip = request.client.host if request.client else '127.0.0.1'
     duty = resolve_duty(req.volume, req.duty)
-    record_history('旋律 (Melody)', melody_title, est_duration, req.volume, duty, client_ip)
+    device = getattr(request.state, 'device', None)
+    record_history('旋律 (Melody)', melody_title, est_duration, req.volume, duty, client_ip, device)
 
     async with play_lock:
         await asyncio.to_thread(buzzer.play_melody, notes, duty, melody_title)
@@ -352,7 +618,8 @@ async def play_melody(req: MelodyRequest, request: Request):
 @app.post('/api/stop')
 async def stop(request: Request):
     client_ip = request.client.host if request.client else '127.0.0.1'
-    record_history('操作 (Control)', '紧急静音/停止', 0, 0, 0, client_ip)
+    device = getattr(request.state, 'device', None)
+    record_history('操作 (Control)', '紧急静音/停止', 0, 0, 0, client_ip, device)
     await asyncio.to_thread(buzzer.stop)
     return {'ok': True, 'message': 'Buzzer playback stopped'}
 
@@ -367,6 +634,11 @@ async def piano_press(req: PianoPressRequest, request: Request):
     if not freq or freq <= 0:
         raise HTTPException(400, 'Invalid note or frequency')
 
+    client_ip = request.client.host if request.client else '127.0.0.1'
+    device = getattr(request.state, 'device', None)
+    if device and not device.get('is_env'):
+        update_device_usage(device.get('id'), 0.0, client_ip)
+
     duty = resolve_duty(req.volume, req.duty)
     await asyncio.to_thread(buzzer.start_tone, freq, duty, note_name)
     return {'ok': True, 'frequency': freq, 'note': note_name}
@@ -380,4 +652,3 @@ async def piano_release(req: Optional[PianoReleaseRequest] = None):
             return {'ok': True, 'ignored': True}
     await asyncio.to_thread(buzzer.stop)
     return {'ok': True, 'stopped': True}
-

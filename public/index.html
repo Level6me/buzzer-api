@@ -337,7 +337,7 @@
         <span>🎼</span> 旋律编曲器
       </button>
       <button onclick="switchTab('api')" id="tab-api" class="tab-btn px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 whitespace-nowrap">
-        <span>🔌</span> API 文档 & Token
+        <span>🔑</span> 多设备 Token & API
       </button>
       <button onclick="switchTab('history')" id="tab-history" class="tab-btn px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 whitespace-nowrap">
         <span>📋</span> 审计日志
@@ -804,34 +804,171 @@
       </div>
     </div>
 
-    <!-- ==================== TAB 5: API 文档 & Token ==================== -->
-    <div id="view-api" class="tab-view hidden space-y-5">
+    <!-- ==================== TAB 5: 多设备 Token 认证与统计 ==================== -->
+    <div id="view-api" class="tab-view hidden space-y-6">
+      
+      <!-- Top Overview & Stats Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div class="glass glass-card rounded-2xl p-4 flex flex-col justify-between border-l-4 border-l-cyan-500 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+            <span>📱 登记设备</span>
+            <span class="text-cyan-500 text-base">🏷️</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-total-devices" class="text-2xl font-black text-slate-900 dark:text-white">0</span>
+            <span class="text-xs text-slate-400">台</span>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-1">包含所有创建的设备</div>
+        </div>
+
+        <div class="glass glass-card rounded-2xl p-4 flex flex-col justify-between border-l-4 border-l-emerald-500 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+            <span>🟢 启用中设备</span>
+            <span class="text-emerald-500 text-base">⚡</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-active-devices" class="text-2xl font-black text-emerald-500">0</span>
+            <span class="text-xs text-slate-400">台启用</span>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-1">允许鉴权发起发声</div>
+        </div>
+
+        <div class="glass glass-card rounded-2xl p-4 flex flex-col justify-between border-l-4 border-l-blue-500 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+            <span>📊 累计调用总量</span>
+            <span class="text-blue-500 text-base">🚀</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-total-calls" class="text-2xl font-black text-blue-600 dark:text-blue-400">0</span>
+            <span class="text-xs text-slate-400">次请求</span>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-1">API 成功调用频次</div>
+        </div>
+
+        <div class="glass glass-card rounded-2xl p-4 flex flex-col justify-between border-l-4 border-l-purple-500 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+            <span>⏱️ 累计发声时长</span>
+            <span class="text-purple-500 text-base">🔊</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-total-duration" class="text-2xl font-black text-purple-600 dark:text-purple-400">0.0</span>
+            <span class="text-xs text-slate-400">秒</span>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-1">硬件 PWM 发声总用量</div>
+        </div>
+      </div>
+
+      <!-- Main Management Container -->
       <div class="glass glass-card rounded-2xl p-6 space-y-6">
         
-        <!-- Token Settings -->
-        <div class="border-b border-slate-200/60 dark:border-slate-800/60 pb-6">
-          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-            <span>🔑 API 访问令牌 (Token 认证管理)</span>
-          </h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            如果服务端在环境变量中配置了 <code>BUZZER_API_TOKEN</code>，则发声与控制接口必须附带该 Token。
-          </p>
-          <div class="flex flex-col sm:flex-row items-center gap-3 max-w-lg">
-            <input type="password" id="api-token-input" placeholder="输入您的 API Token (保存在浏览器本地)" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none font-mono">
-            <button onclick="saveApiToken()" class="w-full sm:w-auto px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold whitespace-nowrap shadow-sm">
-              保存 Token
+        <!-- Header & Auth Status -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-800/60 pb-5">
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span>🔑 多设备 API Token 认证与用量统计</span>
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              支持为客厅 iPad、手机、HomeAssistant、温湿度传感器等各独立端分配专属 Token，记录调用指标与审计详情。
+            </p>
+          </div>
+          <div id="auth-status-badge" class="self-start sm:self-auto px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800/60">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>保护状态检测中</span>
+          </div>
+        </div>
+
+        <!-- 本端浏览器 Token 激活绑定栏 -->
+        <div class="bg-gradient-to-r from-cyan-500/10 via-blue-500/5 to-transparent dark:from-cyan-950/40 dark:via-blue-950/20 rounded-xl p-4 border border-cyan-200/60 dark:border-cyan-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="text-xs font-bold text-cyan-800 dark:text-cyan-300 flex items-center gap-2">
+              <span>💻 当前浏览器已绑定的活跃 Token</span>
+              <span id="current-token-pill" class="px-2 py-0.5 rounded-md text-[11px] font-mono bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-200">未设置</span>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+              对应设备身份：<span id="current-device-name-text" class="font-semibold text-slate-700 dark:text-slate-200">未关联</span> • 本端向服务端发起的发声请求将自动归属此设备并记录统计。
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <input type="password" id="api-token-input" placeholder="输入或粘贴 API Token..." class="w-full md:w-56 px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500 font-mono">
+            <button onclick="saveApiToken()" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold whitespace-nowrap shadow-sm">
+              应用
             </button>
-            <button onclick="clearApiToken()" class="w-full sm:w-auto px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold whitespace-nowrap">
+            <button onclick="clearApiToken()" class="px-2.5 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold whitespace-nowrap" title="清除本地存储的 Token">
               清除
             </button>
           </div>
         </div>
 
+        <!-- 添加新设备 Token 表单 -->
+        <div class="bg-slate-50/80 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <span>➕ 分配新设备 Token</span>
+            </h4>
+            <span class="text-[11px] text-slate-400">支持自动随机生成高强度 Token 或指定个性化 Token</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <div class="sm:col-span-5">
+              <input type="text" id="new-dev-name" placeholder="设备名称（如：客厅 iPad / HomeAssistant / 传感器）" class="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500">
+            </div>
+            <div class="sm:col-span-4 relative flex items-center">
+              <input type="text" id="new-dev-token" placeholder="自定义 Token（留空自动生成）" class="w-full px-3 py-2 pr-16 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500 font-mono">
+              <button onclick="generateRandomTokenInput()" class="absolute right-2 px-2 py-0.5 text-[10px] rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-600">
+                🎲 随机
+              </button>
+            </div>
+            <div class="sm:col-span-3 flex items-center">
+              <button onclick="createDevice()" class="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5">
+                <span>生成并添加设备</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 设备列表与用量监控表格 -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <span>📱 已授权设备列表 & 实时活跃用量</span>
+              <span id="devices-count-badge" class="px-2 py-0.5 rounded-full text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">0 台</span>
+            </h4>
+            <button onclick="fetchDevices()" class="px-3 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-1">
+              <span>🔄</span> 刷新设备
+            </button>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200/70 dark:border-slate-800/70">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100/70 dark:bg-slate-900/70 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">设备名称 / 标识</th>
+                  <th class="py-2.5 px-3">API Token 密钥</th>
+                  <th class="py-2.5 px-3 text-center">状态</th>
+                  <th class="py-2.5 px-3 text-right">调用次数</th>
+                  <th class="py-2.5 px-3 text-right">发声时长</th>
+                  <th class="py-2.5 px-3">最近活跃与来源 IP</th>
+                  <th class="py-2.5 px-3 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody id="devices-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white/40 dark:bg-slate-900/30 font-mono text-slate-600 dark:text-slate-300">
+                <tr>
+                  <td colspan="7" class="py-8 text-center text-slate-400">加载设备列表中...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Code Snippets -->
-        <div class="space-y-4">
-          <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <span>💻 快速调用示例 (Curl & Python)</span>
-          </h3>
+        <div class="space-y-4 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span>💻 快速调用示例 (Curl & Python)</span>
+            </h3>
+            <span class="text-[11px] text-slate-400">示例命令会自动同步显示您当前选中的 Token</span>
+          </div>
 
           <!-- Curl tone -->
           <div class="bg-slate-100/80 dark:bg-slate-900/80 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800/60">
@@ -867,28 +1004,42 @@
     <!-- ==================== TAB 6: 审计日志 ==================== -->
     <div id="view-history" class="tab-view hidden space-y-5">
       <div class="glass glass-card rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <span>📋 最近播放历史与审计日志</span>
-          </h3>
-          <button onclick="fetchHistory()" class="px-3 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">刷新记录</button>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span>📋 最近播放历史与审计日志</span>
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              明确追踪每次发声操作的具体来源设备名称、执行时长与客户端 IP
+            </p>
+          </div>
+          
+          <div class="flex items-center gap-2.5">
+            <select id="history-device-filter" onchange="renderHistoryTable()" class="px-3 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none">
+              <option value="all">🔍 筛选全部设备来源</option>
+            </select>
+            <button onclick="fetchHistory()" class="px-3 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap">
+              刷新记录
+            </button>
+          </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto rounded-xl border border-slate-200/70 dark:border-slate-800/70">
           <table class="w-full text-left text-xs">
-            <thead>
-              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase">
+            <thead class="bg-slate-100/70 dark:bg-slate-900/70 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+              <tr>
                 <th class="py-2.5 px-3">时间</th>
                 <th class="py-2.5 px-3">动作类型</th>
                 <th class="py-2.5 px-3">详情内容</th>
                 <th class="py-2.5 px-3">持续时长</th>
                 <th class="py-2.5 px-3">音量</th>
-                <th class="py-2.5 px-3">触发客户端</th>
+                <th class="py-2.5 px-3">触发设备 / 来源</th>
+                <th class="py-2.5 px-3">客户端 IP</th>
               </tr>
             </thead>
-            <tbody id="history-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono text-slate-600 dark:text-slate-300">
+            <tbody id="history-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white/40 dark:bg-slate-900/30 font-mono text-slate-600 dark:text-slate-300">
               <tr>
-                <td colspan="6" class="py-6 text-center text-slate-400">暂无播放记录</td>
+                <td colspan="7" class="py-6 text-center text-slate-400">暂无播放记录</td>
               </tr>
             </tbody>
           </table>
@@ -983,6 +1134,7 @@
       if (activeView) activeView.classList.remove('hidden');
 
       if (tabId === 'history') fetchHistory();
+      if (tabId === 'api') fetchDevices();
       if (tabId === 'piano') {
         setTimeout(() => scrollToOctave('c4'), 60);
       }
@@ -1100,7 +1252,23 @@
       }
     }
 
-    // Token Helper
+    // =========================================================================
+    // 设备与多 Token 认证管理引擎 (Multi-Device API Token Management)
+    // =========================================================================
+    let allDevices = [];
+    let allHistoryItems = [];
+    let visibleTokens = {};
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     function getAuthHeaders() {
       const token = localStorage.getItem('buzzer_api_token') || '';
       const headers = { 'Content-Type': 'application/json' };
@@ -1108,16 +1276,389 @@
       return headers;
     }
 
+    function updateCurlExamples(token) {
+      const activeToken = token || localStorage.getItem('buzzer_api_token') || 'YOUR_TOKEN';
+      const toneElem = document.getElementById('code-curl-tone');
+      if (toneElem) {
+        toneElem.innerText = `curl -X POST http://127.0.0.1:8001/api/play/tone \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Token: ${activeToken}" \\\n  -d '{"frequency": 1000, "duration": 0.2, "volume": 25}'`;
+      }
+      const melodyElem = document.getElementById('code-curl-melody');
+      if (melodyElem) {
+        melodyElem.innerText = `curl -X POST http://127.0.0.1:8001/api/play/melody \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Token: ${activeToken}" \\\n  -d '{"name": "success", "volume": 30}'`;
+      }
+      const stopElem = document.getElementById('code-curl-stop');
+      if (stopElem) {
+        stopElem.innerText = `curl -X POST http://127.0.0.1:8001/api/stop \\\n  -H "X-API-Token: ${activeToken}"`;
+      }
+    }
+
+    function syncLocalTokenStatus() {
+      const savedToken = localStorage.getItem('buzzer_api_token') || '';
+      const input = document.getElementById('api-token-input');
+      if (input && input.value !== savedToken) {
+        input.value = savedToken;
+      }
+      const pill = document.getElementById('current-token-pill');
+      const devNameText = document.getElementById('current-device-name-text');
+      
+      let matchedDev = null;
+      if (savedToken && allDevices) {
+        matchedDev = allDevices.find(d => d.token === savedToken);
+      }
+
+      if (pill) {
+        if (savedToken) {
+          const masked = savedToken.length > 12 ? savedToken.substring(0, 7) + '...' + savedToken.substring(savedToken.length - 4) : savedToken;
+          pill.innerText = masked;
+          pill.className = 'px-2 py-0.5 rounded-md text-[11px] font-mono bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60';
+        } else {
+          pill.innerText = '未绑定 Token';
+          pill.className = 'px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
+        }
+      }
+
+      if (devNameText) {
+        if (matchedDev) {
+          devNameText.innerHTML = `<span class="text-cyan-600 dark:text-cyan-400 font-bold">📱 ${escapeHtml(matchedDev.name)}</span>`;
+        } else if (savedToken) {
+          devNameText.innerHTML = `<span class="text-slate-500">外部自定义 Token</span>`;
+        } else {
+          devNameText.innerHTML = `<span class="text-slate-400">未关联设备 (匿名请求)</span>`;
+        }
+      }
+
+      updateCurlExamples(savedToken);
+    }
+
     function saveApiToken() {
-      const val = document.getElementById('api-token-input').value.trim();
+      const input = document.getElementById('api-token-input');
+      const val = input ? input.value.trim() : '';
       localStorage.setItem('buzzer_api_token', val);
-      showToast('API Token 已保存在本地', '🔑');
+      syncLocalTokenStatus();
+      renderDevicesTable();
+      showToast('本端 API Token 已更新生效', '🔑');
     }
 
     function clearApiToken() {
       localStorage.removeItem('buzzer_api_token');
-      document.getElementById('api-token-input').value = '';
-      showToast('API Token 已清除', '🗑️');
+      const input = document.getElementById('api-token-input');
+      if (input) input.value = '';
+      syncLocalTokenStatus();
+      renderDevicesTable();
+      showToast('本端 API Token 已清除', '🗑️');
+    }
+
+    function setAsLocalDevice(token, name) {
+      localStorage.setItem('buzzer_api_token', token);
+      syncLocalTokenStatus();
+      renderDevicesTable();
+      showToast(`已将「${name}」设为当前浏览器活跃 Token`, '📱');
+    }
+
+    function generateRandomTokenInput() {
+      const chars = 'abcdef0123456789';
+      let rand = '';
+      for (let i = 0; i < 24; i++) {
+        rand += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const token = 'bz_live_' + rand;
+      const input = document.getElementById('new-dev-token');
+      if (input) input.value = token;
+      showToast('已生成随机安全 Token', '🎲');
+    }
+
+    function toggleTokenVisibility(devId) {
+      visibleTokens[devId] = !visibleTokens[devId];
+      renderDevicesTable();
+    }
+
+    async function fetchDevices() {
+      try {
+        const res = await fetch('/api/devices', { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        allDevices = data.devices || [];
+
+        // 更新统计卡片
+        const summary = data.summary || {};
+        const totalDevEl = document.getElementById('stat-total-devices');
+        const activeDevEl = document.getElementById('stat-active-devices');
+        const totalCallsEl = document.getElementById('stat-total-calls');
+        const totalDurationEl = document.getElementById('stat-total-duration');
+        const badgeCount = document.getElementById('devices-count-badge');
+        const authBadge = document.getElementById('auth-status-badge');
+
+        if (totalDevEl) totalDevEl.innerText = summary.total_devices || 0;
+        if (activeDevEl) activeDevEl.innerText = summary.active_devices || 0;
+        if (totalCallsEl) totalCallsEl.innerText = (summary.total_calls || 0) + ' 次';
+        if (totalDurationEl) totalDurationEl.innerText = (summary.total_duration || 0).toFixed(1) + ' 秒';
+        if (badgeCount) badgeCount.innerText = `${allDevices.length} 台`;
+
+        if (authBadge) {
+          if (data.token_required) {
+            authBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>鉴权保护已生效</span>`;
+            authBadge.className = 'self-start sm:self-auto px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800/60';
+          } else {
+            authBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>免密开放模式</span>`;
+            authBadge.className = 'self-start sm:self-auto px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-300 dark:border-amber-800/60';
+          }
+        }
+
+        syncLocalTokenStatus();
+        renderDevicesTable();
+        updateHistoryFilterOptions();
+      } catch (err) {
+        console.error('fetchDevices error:', err);
+      }
+    }
+
+    function renderDevicesTable() {
+      const tbody = document.getElementById('devices-tbody');
+      if (!tbody) return;
+
+      if (!allDevices || allDevices.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="py-8 text-center text-slate-400">
+              <div class="flex flex-col items-center justify-center gap-2">
+                <span class="text-2xl">📱</span>
+                <p>暂无任何授权设备 Token，您可以在上方表单创建第一个设备</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const currentLocalToken = localStorage.getItem('buzzer_api_token') || '';
+
+      tbody.innerHTML = allDevices.map(dev => {
+        const isCurrent = (dev.token && dev.token === currentLocalToken);
+        const isEnv = Boolean(dev.is_env);
+        const isEnabled = dev.enabled !== false;
+        const isTokenShown = Boolean(visibleTokens[dev.id]);
+        
+        let tokenDisplay = dev.token || '--';
+        if (!isTokenShown && dev.token && !isEnv) {
+          tokenDisplay = dev.token.substring(0, 8) + '••••••••' + dev.token.substring(dev.token.length - 4);
+        }
+
+        const devIcon = dev.name.includes('iPad') ? '📱' :
+                        (dev.name.includes('HomeAssistant') || dev.name.includes('HA')) ? '🏠' :
+                        (dev.name.includes('传感器') || dev.name.includes('Sensor')) ? '🌡️' :
+                        (dev.name.includes('手机') || dev.name.includes('Phone')) ? '📲' :
+                        isEnv ? '⚙️' : '🔌';
+
+        return `
+          <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors ${!isEnabled ? 'opacity-60 bg-slate-50/30 dark:bg-slate-900/20' : ''}">
+            <td class="py-3 px-3">
+              <div class="flex items-center gap-2">
+                <span class="text-base">${devIcon}</span>
+                <div>
+                  <div class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>${escapeHtml(dev.name)}</span>
+                    ${isCurrent ? '<span class="px-1.5 py-0.2 text-[10px] rounded font-bold bg-emerald-500 text-white tracking-wide">本端</span>' : ''}
+                    ${isEnv ? '<span class="px-1.5 py-0.2 text-[10px] rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">系统</span>' : ''}
+                  </div>
+                  <div class="text-[10px] text-slate-400 font-mono">ID: ${dev.id} • 创建: ${dev.created_at || '--'}</div>
+                </div>
+              </div>
+            </td>
+
+            <td class="py-3 px-3">
+              <div class="flex items-center gap-1.5">
+                <code class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-xs select-all">${escapeHtml(tokenDisplay)}</code>
+                ${!isEnv ? `
+                  <button onclick="toggleTokenVisibility('${dev.id}')" title="${isTokenShown ? '隐藏明文' : '查看明文'}" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    ${isTokenShown ? '🙈' : '👁️'}
+                  </button>
+                  <button onclick="copyToClipboard('${escapeHtml(dev.token)}', 'Token 已复制')" title="复制完整 Token" class="p-1 text-slate-400 hover:text-cyan-500">
+                    📋
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+
+            <td class="py-3 px-3 text-center">
+              ${isEnv ? `
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">只读</span>
+              ` : `
+                <button onclick="toggleDevice('${dev.id}')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1 mx-auto ${isEnabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 hover:bg-emerald-200' : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-300'}">
+                  <span class="w-1.5 h-1.5 rounded-full ${isEnabled ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+                  <span>${isEnabled ? '启用中' : '已停用'}</span>
+                </button>
+              `}
+            </td>
+
+            <td class="py-3 px-3 text-right font-bold text-slate-700 dark:text-slate-200">
+              ${dev.call_count !== undefined ? dev.call_count : 0} 次
+            </td>
+
+            <td class="py-3 px-3 text-right font-bold text-slate-700 dark:text-slate-200">
+              ${dev.total_duration !== undefined ? Number(dev.total_duration).toFixed(1) : '0.0'} s
+            </td>
+
+            <td class="py-3 px-3">
+              <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                ${dev.last_used_at || '<span class="text-slate-400">从未活跃</span>'}
+              </div>
+              <div class="text-[10px] text-slate-400">
+                ${dev.last_ip ? `IP: ${dev.last_ip}` : '--'}
+              </div>
+            </td>
+
+            <td class="py-3 px-3 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                ${!isEnv && !isCurrent ? `
+                  <button onclick="setAsLocalDevice('${escapeHtml(dev.token)}', '${escapeHtml(dev.name)}')" class="px-2 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 dark:hover:bg-cyan-900/60 text-cyan-600 dark:text-cyan-400 text-[11px] font-semibold whitespace-nowrap border border-cyan-200/60 dark:border-cyan-800/60">
+                    设为本端
+                  </button>
+                ` : ''}
+                ${!isEnv ? `
+                  <button onclick="resetDeviceStats('${dev.id}', '${escapeHtml(dev.name)}')" title="重置调用与时长统计" class="p-1 rounded text-slate-400 hover:text-amber-500">
+                    🔄
+                  </button>
+                  <button onclick="deleteDevice('${dev.id}', '${escapeHtml(dev.name)}')" title="删除设备" class="p-1 rounded text-slate-400 hover:text-rose-500">
+                    🗑️
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function createDevice() {
+      const nameInput = document.getElementById('new-dev-name');
+      const tokenInput = document.getElementById('new-dev-token');
+      const name = nameInput.value.trim();
+      const token = tokenInput.value.trim();
+
+      if (!name) {
+        showToast('请输入设备名称', '⚠️');
+        nameInput.focus();
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/devices', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name, token: token || null })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          nameInput.value = '';
+          tokenInput.value = '';
+          showToast(`已为「${name}」分配专属 Token`, '✅');
+          
+          if (!localStorage.getItem('buzzer_api_token') && data.device && data.device.token) {
+            localStorage.setItem('buzzer_api_token', data.device.token);
+            showToast(`已自动绑定「${name}」为当前浏览器 Token`, '🔑');
+          }
+
+          fetchDevices();
+        } else {
+          showToast(data.message || data.detail || '创建设备失败', '❌');
+        }
+      } catch (err) {
+        showToast('网络错误: ' + err.message, '❌');
+      }
+    }
+
+    async function toggleDevice(id) {
+      try {
+        const res = await fetch(`/api/devices/${id}/toggle`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          fetchDevices();
+          showToast('已切换设备状态', '⚡');
+        } else {
+          const data = await res.json();
+          showToast(data.message || '操作失败', '❌');
+        }
+      } catch (e) {
+        showToast('网络错误', '❌');
+      }
+    }
+
+    async function deleteDevice(id, name) {
+      if (!confirm(`确定要删除设备「${name}」及其 API Token 吗？\n删除后该设备将无法通过此 Token 发声。`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/devices/${id}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const curToken = localStorage.getItem('buzzer_api_token');
+          const dev = allDevices.find(d => d.id === id);
+          if (dev && dev.token === curToken) {
+            localStorage.removeItem('buzzer_api_token');
+          }
+          fetchDevices();
+          showToast(`已删除设备「${name}」`, '🗑️');
+        } else {
+          const data = await res.json();
+          showToast(data.message || '删除失败', '❌');
+        }
+      } catch (e) {
+        showToast('网络错误: ' + e.message, '❌');
+      }
+    }
+
+    async function resetDeviceStats(id, name) {
+      if (!confirm(`确定要重置设备「${name}」的调用次数与发声时长统计吗？`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/devices/${id}/reset`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          fetchDevices();
+          showToast(`已重置「${name}」的使用统计`, '🔄');
+        } else {
+          const data = await res.json();
+          showToast(data.message || '重置失败', '❌');
+        }
+      } catch (e) {
+        showToast('网络错误', '❌');
+      }
+    }
+
+    function copyToClipboard(text, successMsg = '已复制到剪贴板') {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(successMsg, '📋');
+        }).catch(() => {
+          fallbackCopyText(text, successMsg);
+        });
+      } else {
+        fallbackCopyText(text, successMsg);
+      }
+    }
+
+    function fallbackCopyText(text, successMsg) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg, '📋');
+      } catch (err) {
+        showToast('复制失败，请手动选择复制', '⚠️');
+      }
+      document.body.removeChild(textarea);
     }
 
     // Global volume
@@ -2259,27 +2800,100 @@
       }
     }
 
-    // History Log
+    // =========================================================================
+    // 审计日志与设备追踪筛选引擎 (Audit History with Device Badges & Filter)
+    // =========================================================================
     async function fetchHistory() {
       try {
-        const res = await fetch('/api/history');
+        const res = await fetch('/api/history', { headers: getAuthHeaders() });
         const data = await res.json();
-        const tbody = document.getElementById('history-tbody');
-        if (!data.history || !data.history.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">暂无播放记录</td></tr>';
-          return;
+        allHistoryItems = data.history || [];
+        updateHistoryFilterOptions();
+        renderHistoryTable();
+      } catch (e) {
+        console.error('fetchHistory error:', e);
+      }
+    }
+
+    function updateHistoryFilterOptions() {
+      const filterSelect = document.getElementById('history-device-filter');
+      if (!filterSelect) return;
+      const currentSelected = filterSelect.value || 'all';
+
+      // 汇总出现过的所有设备名称
+      const deviceNames = new Set();
+      allHistoryItems.forEach(item => {
+        if (item.device_name) deviceNames.add(item.device_name);
+      });
+      allDevices.forEach(dev => {
+        if (dev.name) deviceNames.add(dev.name);
+      });
+
+      let optionsHtml = '<option value="all">🔍 筛选全部设备来源</option>';
+      Array.from(deviceNames).sort().forEach(name => {
+        const isSel = (name === currentSelected) ? 'selected' : '';
+        optionsHtml += `<option value="${escapeHtml(name)}" ${isSel}>📱 ${escapeHtml(name)}</option>`;
+      });
+
+      filterSelect.innerHTML = optionsHtml;
+    }
+
+    function renderHistoryTable() {
+      const tbody = document.getElementById('history-tbody');
+      if (!tbody) return;
+
+      const filterSelect = document.getElementById('history-device-filter');
+      const selectedFilter = filterSelect ? filterSelect.value : 'all';
+
+      let items = allHistoryItems;
+      if (selectedFilter && selectedFilter !== 'all') {
+        items = items.filter(item => item.device_name === selectedFilter);
+      }
+
+      if (!items || !items.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">暂无符合条件的播放记录</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = items.map(item => {
+        const devName = item.device_name || '本地/未分配设备';
+        let badgeClass = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700';
+        let icon = '🌐';
+
+        if (devName.includes('iPad')) {
+          badgeClass = 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/70 dark:text-cyan-300 border border-cyan-300/60 dark:border-cyan-800/60';
+          icon = '📱';
+        } else if (devName.includes('HomeAssistant') || devName.includes('HA')) {
+          badgeClass = 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-800/60';
+          icon = '🏠';
+        } else if (devName.includes('传感器') || devName.includes('Sensor')) {
+          badgeClass = 'bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60';
+          icon = '🌡️';
+        } else if (devName.includes('Env') || devName.includes('系统')) {
+          badgeClass = 'bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-300/60 dark:border-purple-800/60';
+          icon = '⚙️';
+        } else if (devName !== '本地/未分配设备') {
+          badgeClass = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/60';
+          icon = '📱';
         }
-        tbody.innerHTML = data.history.map(item => `
+
+        return `
           <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
             <td class="py-2.5 px-3 text-slate-400">${item.time}</td>
             <td class="py-2.5 px-3 font-semibold text-cyan-600 dark:text-cyan-400">${item.type}</td>
-            <td class="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-bold">${item.detail}</td>
+            <td class="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-bold">${escapeHtml(item.detail)}</td>
             <td class="py-2.5 px-3">${item.duration ? item.duration + 's' : '--'}</td>
             <td class="py-2.5 px-3">${item.volume !== null ? item.volume + '%' : '--'}</td>
+            <td class="py-2.5 px-3">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${badgeClass}">
+                <span>${icon}</span>
+                <span>${escapeHtml(devName)}</span>
+              </span>
+            </td>
             <td class="py-2.5 px-3 text-slate-400">${item.client}</td>
           </tr>
-        `).join('');
-      } catch (e) {}
+        `;
+      }).join('');
     }
 
     // ==========================================
@@ -2419,7 +3033,10 @@
       initPianoEventListeners();
 
       const savedToken = localStorage.getItem('buzzer_api_token');
-      if (savedToken) document.getElementById('api-token-input').value = savedToken;
+      if (savedToken && document.getElementById('api-token-input')) {
+        document.getElementById('api-token-input').value = savedToken;
+      }
+      fetchDevices();
 
       pollTimer = setInterval(fetchStatus, 2500);
       window.addEventListener('pointerdown', () => { initWebAudio(); }, { once: true });
