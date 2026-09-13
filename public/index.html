@@ -280,34 +280,32 @@
     <!-- 2. High-Precision Audio Oscilloscope & Frequency Spectrum Visualizer (专属触顶吸顶悬浮) -->
     <section id="visualizer-sticky-section" class="sticky top-16 z-30 bg-slate-950/95 backdrop-blur-xl rounded-2xl p-3 border border-slate-800 shadow-2xl shadow-black/50 relative flex flex-col gap-2 transition-all duration-300 !mt-3" style="margin-top: 0.75rem;">
         <!-- Visualizer Toolbar -->
-        <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-800/80">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1.5 border-b border-slate-800/80">
           
           <!-- Mode Switcher & Harmonics Mode -->
-          <div class="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-lg border border-slate-800 flex-wrap">
-            <button onclick="setVisualizerMode('dual')" id="vis-mode-dual" class="vis-tab active px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-cyan-500 text-white shadow-sm flex items-center gap-1">
+          <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-800 overflow-x-auto no-scrollbar">
+            <button onclick="setVisualizerMode('dual')" id="vis-mode-dual" class="vis-tab active px-2 sm:px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-cyan-500 text-white shadow-sm flex items-center gap-1 whitespace-nowrap flex-shrink-0">
               <span>🔀</span> 双模并显
             </button>
-            <button onclick="setVisualizerMode('spectrum')" id="vis-mode-spectrum" class="vis-tab px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-400 hover:text-slate-200 flex items-center gap-1">
-              <span>📊</span> 声音频率频谱
+            <button onclick="setVisualizerMode('spectrum')" id="vis-mode-spectrum" class="vis-tab px-2 sm:px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-400 hover:text-slate-200 flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+              <span>📊</span> 音频频谱
             </button>
-            <button onclick="setVisualizerMode('oscilloscope')" id="vis-mode-oscilloscope" class="vis-tab px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-400 hover:text-slate-200 flex items-center gap-1">
-              <span>📈</span> PWM方波示波器
+            <button onclick="setVisualizerMode('oscilloscope')" id="vis-mode-oscilloscope" class="vis-tab px-2 sm:px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-400 hover:text-slate-200 flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+              <span>📈</span> 方波示波
             </button>
-            <div class="hidden sm:block w-px h-4 bg-slate-700 mx-0.5"></div>
-            <button id="btn-toggle-harmonics" onclick="toggleHarmonics()" class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-cyan-950/80 text-cyan-400 border border-cyan-800/80 hover:bg-cyan-900/60 flex items-center gap-1" title="切换是否显示高阶声学泛音/谐波分量">
+            <div class="w-px h-3.5 bg-slate-700 mx-0.5 flex-shrink-0"></div>
+            <button id="btn-toggle-harmonics" onclick="toggleHarmonics()" class="px-2 sm:px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-cyan-950/80 text-cyan-400 border border-cyan-800/80 hover:bg-cyan-900/60 flex items-center gap-1 whitespace-nowrap flex-shrink-0" title="切换是否显示高阶声学泛音/谐波分量">
               <span id="harmonics-icon">🌊</span>
-              <span id="harmonics-text">声学泛音: 开</span>
+              <span id="harmonics-text">泛音: 开</span>
             </button>
           </div>
 
-          <!-- Real-time HUD Badges (全端可见并加宽防溢出) -->
-          <div class="flex items-center gap-2 flex-wrap text-xs font-mono">
-            <div id="hud-badges" class="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5">
-              <span id="hud-freq" class="w-[112px] text-center inline-block px-2.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">频率: 0 Hz</span>
-              <span id="hud-note" class="w-[85px] text-center inline-block px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">音符: --</span>
-              <span id="hud-period" class="w-[120px] text-center inline-block px-2.5 py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">周期: -- ms</span>
-              <span id="hud-duty" class="w-[92px] text-center inline-block px-2.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">占空比: 0%</span>
-            </div>
+          <!-- Real-time HUD Badges (移动端 2x2 稳固排列，PC端单行展开，绝不截断) -->
+          <div id="hud-badges" class="grid grid-cols-2 sm:flex sm:items-center gap-1.5 w-full sm:w-auto text-xs font-mono">
+            <span id="hud-freq" class="text-center px-2 py-1 sm:py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold font-mono tabular-nums whitespace-nowrap sm:w-[112px] flex items-center justify-center">频率: 0 Hz</span>
+            <span id="hud-note" class="text-center px-2 py-1 sm:py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold font-mono tabular-nums whitespace-nowrap sm:w-[85px] flex items-center justify-center">音符: --</span>
+            <span id="hud-period" class="text-center px-2 py-1 sm:py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400 font-mono tabular-nums whitespace-nowrap sm:w-[120px] flex items-center justify-center">周期: -- ms</span>
+            <span id="hud-duty" class="text-center px-2 py-1 sm:py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono tabular-nums whitespace-nowrap sm:w-[92px] flex items-center justify-center">占空比: 0%</span>
           </div>
         </div>
 
@@ -1158,13 +1156,13 @@
       const btn = document.getElementById('btn-toggle-harmonics');
       if (showHarmonics) {
         icon.innerText = '🌊';
-        text.innerText = '声学泛音: 开';
-        btn.className = 'px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-cyan-950/80 text-cyan-400 border border-cyan-800/80 hover:bg-cyan-900/60 flex items-center gap-1';
+        text.innerText = '泛音: 开';
+        btn.className = 'px-2 sm:px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-cyan-950/80 text-cyan-400 border border-cyan-800/80 hover:bg-cyan-900/60 flex items-center gap-1 whitespace-nowrap flex-shrink-0';
         showToast('已开启物理高阶声学泛音/谐波显示', '🌊');
       } else {
         icon.innerText = '🎯';
-        text.innerText = '纯净主频: 仅基频';
-        btn.className = 'px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-1';
+        text.innerText = '泛音: 关';
+        btn.className = 'px-2 sm:px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-1 whitespace-nowrap flex-shrink-0';
         showToast('已切换为纯净主频模式 (隐藏高阶泛音)', '🎯');
       }
     }
