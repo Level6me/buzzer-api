@@ -1270,6 +1270,12 @@
       let stepPhase = 0;
       let smoothFreq = 0;
       let smoothDuty = 0.1;
+      let smoothAmp = 0; // 纵向振幅生成能量（从底部 0 垂直跃升至 1.0）
+      const NUM_BARS = 36; // 36 组自底部向上喷薄跃动的律动频谱柱
+      const barHeights = new Float32Array(NUM_BARS);
+      const barPeaks = new Float32Array(NUM_BARS);
+      const barPeakDelays = new Float32Array(NUM_BARS);
+      const risingParticles = []; // 向上升腾的声学光效粒子
 
       function resize() {
         const rect = canvas.parentElement.getBoundingClientRect();
@@ -1334,7 +1340,7 @@
         ctx.restore();
       }
 
-      // 1. Draw Spectrum (声音频率频谱波形)
+      // 1. Draw Spectrum (从下往上跃动生成的声音频率频谱波形)
       function drawSpectrum(ctx, x0, y0, w, h, activeFreq, duty, isPlaying) {
         drawOscilloscopeGrid(ctx, x0, y0, w, h, true);
 
@@ -1342,13 +1348,13 @@
         ctx.fillStyle = '#06b6d4';
         ctx.font = `bold ${Math.max(9, Math.floor(9 * (window.devicePixelRatio || 1)))}px monospace`;
         ctx.textAlign = 'left';
-        ctx.fillText('频谱 (FFT 20Hz-5kHz 频率能量分布)', x0 + 8, y0 + 14);
+        ctx.fillText('频谱 (FFT 20Hz-5kHz 频率能量分布 · 纵向跃升)', x0 + 8, y0 + 14);
         ctx.restore();
 
         const baseY = y0 + h - 16;
         const availableHeight = h - 32;
 
-        if (!isPlaying || activeFreq < 20) {
+        if (!isPlaying || activeFreq < 20 || smoothAmp < 0.01) {
           ctx.beginPath();
           ctx.strokeStyle = '#334155';
           ctx.lineWidth = 1.5;
@@ -1365,19 +1371,69 @@
         const f0 = activeFreq;
         const harmonics = showHarmonics ? [
           { f: f0, amp: 1.0, isBase: true },
-          { f: f0 * 2, amp: Math.min(0.18, Math.abs(Math.sin(2 * Math.PI * duty)) * 0.3), label: '2x' },
-          { f: f0 * 3, amp: 0.28, label: '3x 泛音' },
-          { f: f0 * 4, amp: 0.10, label: '4x' },
-          { f: f0 * 5, amp: 0.16, label: '5x 泛音' },
-          { f: f0 * 7, amp: 0.08, label: '7x' }
+          { f: f0 * 2, amp: Math.min(0.20, Math.abs(Math.sin(2 * Math.PI * duty)) * 0.3), label: '2x' },
+          { f: f0 * 3, amp: 0.32, label: '3x 泛音' },
+          { f: f0 * 4, amp: 0.12, label: '4x' },
+          { f: f0 * 5, amp: 0.18, label: '5x 泛音' },
+          { f: f0 * 7, amp: 0.10, label: '7x' }
         ] : [
           { f: f0, amp: 1.0, isBase: true }
         ];
 
-        const grad = ctx.createLinearGradient(x0, y0, x0, baseY);
-        grad.addColorStop(0, 'rgba(6, 182, 212, 0.75)');
-        grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.4)');
-        grad.addColorStop(1, 'rgba(15, 23, 42, 0.05)');
+        // 1. 绘制从底部向上跃动的多频段律动柱 (Bottom-to-Top Equalizer Bars)
+        const barWidth = Math.max(3, Math.floor((w - 24) / NUM_BARS) - 3);
+        const barGap = (w - 24) / NUM_BARS;
+
+        for (let i = 0; i < NUM_BARS; i++) {
+          const barX = x0 + 12 + i * barGap;
+          const barFreq = xToFreq(12 + i * barGap + barWidth / 2, w);
+          let barEnergy = 0.02 + Math.sin(i * 0.4 + stepPhase * 1.5) * 0.012;
+
+          harmonics.forEach(hm => {
+            if (hm.f >= F_MIN && hm.f <= F_MAX) {
+              const df = Math.abs(barFreq - hm.f) / (hm.f * 0.045 + 8);
+              const peak = hm.amp / (1 + df * df * 6);
+              barEnergy += peak * 0.92;
+            }
+          });
+
+          barEnergy = Math.min(1.0, barEnergy) * smoothAmp;
+          barHeights[i] += (barEnergy - barHeights[i]) * 0.35;
+
+          if (barHeights[i] > barPeaks[i]) {
+            barPeaks[i] = barHeights[i];
+            barPeakDelays[i] = 10;
+          } else {
+            if (barPeakDelays[i] > 0) {
+              barPeakDelays[i]--;
+            } else {
+              barPeaks[i] = Math.max(0, barPeaks[i] - 0.025);
+            }
+          }
+
+          const barH = Math.max(2, barHeights[i] * availableHeight);
+          const barY = baseY - barH;
+
+          const barGrad = ctx.createLinearGradient(barX, baseY, barX, barY);
+          barGrad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
+          barGrad.addColorStop(0.7, 'rgba(14, 165, 233, 0.65)');
+          barGrad.addColorStop(1, 'rgba(56, 189, 248, 0.95)');
+
+          ctx.fillStyle = barGrad;
+          ctx.fillRect(barX, barY, barWidth, barH);
+
+          if (barPeaks[i] > 0.03) {
+            const peakY = baseY - (barPeaks[i] * availableHeight);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(barX, peakY - 1.5, barWidth, 2);
+          }
+        }
+
+        // 2. 绘制平滑主频能量轮廓（纵向能量高度随 smoothAmp 从下往上升起）
+        const grad = ctx.createLinearGradient(x0, baseY, x0, baseY - availableHeight * smoothAmp);
+        grad.addColorStop(0, 'rgba(15, 23, 42, 0.05)');
+        grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.3)');
+        grad.addColorStop(1, 'rgba(6, 182, 212, 0.65)');
 
         ctx.beginPath();
         ctx.moveTo(x0, baseY);
@@ -1396,7 +1452,7 @@
             }
           });
 
-          energy = Math.min(1.0, energy);
+          energy = Math.min(1.0, energy) * smoothAmp;
           const py = baseY - energy * availableHeight;
           ctx.lineTo(x0 + px, py);
 
@@ -1413,6 +1469,7 @@
         ctx.fillStyle = grad;
         ctx.fill();
 
+        // 轮廓光效描边
         ctx.save();
         ctx.strokeStyle = '#22d3ee';
         ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
@@ -1430,7 +1487,7 @@
               energy += peak * 0.88;
             }
           });
-          energy = Math.min(1.0, energy);
+          energy = Math.min(1.0, energy) * smoothAmp;
           const py = baseY - energy * availableHeight;
           if (px === 0) ctx.moveTo(x0 + px, py);
           else ctx.lineTo(x0 + px, py);
@@ -1438,13 +1495,47 @@
         ctx.stroke();
         ctx.restore();
 
+        // 3. 向上升腾的声能粒子 (Upward Floating Sonic Sparks)
+        if (smoothAmp > 0.15 && Math.random() < 0.6) {
+          if (risingParticles.length < 30) {
+            risingParticles.push({
+              x: peakPos.x + (Math.random() - 0.5) * 50,
+              y: baseY,
+              vy: 1.5 + Math.random() * 3.0,
+              vx: (Math.random() - 0.5) * 1.0,
+              radius: 1 + Math.random() * 2,
+              alpha: 0.9,
+              color: Math.random() > 0.4 ? '#22d3ee' : '#a5b4fc'
+            });
+          }
+        }
+        for (let i = risingParticles.length - 1; i >= 0; i--) {
+          const p = risingParticles[i];
+          p.y -= p.vy;
+          p.x += p.vx;
+          p.alpha -= 0.03;
+          if (p.alpha <= 0 || p.y < y0 + 10) {
+            risingParticles.splice(i, 1);
+            continue;
+          }
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 5;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
         // Draw Harmonic Sub-markers if enabled
         if (showHarmonics) {
           harmonics.forEach(hm => {
             if (!hm.isBase && hm.label && hm.f >= F_MIN && hm.f <= F_MAX) {
               const hx = x0 + freqToX(hm.f, w);
               if (hx >= x0 + 10 && hx <= x0 + w - 10) {
-                const hy = baseY - (hm.amp * 0.88) * availableHeight;
+                const hy = baseY - (hm.amp * 0.88 * smoothAmp) * availableHeight;
                 ctx.save();
                 ctx.fillStyle = 'rgba(148, 163, 184, 0.75)';
                 ctx.font = `${Math.max(8, Math.floor(8 * (window.devicePixelRatio || 1)))}px monospace`;
@@ -1463,7 +1554,7 @@
           });
         }
 
-        // Fundamental Peak Marker Pin & Tag
+        // Fundamental Peak Marker Pin & Tag (随波形从底边向上升起)
         if (peakPos.x >= x0 && peakPos.x <= x0 + w) {
           ctx.save();
           ctx.fillStyle = '#ffffff';
@@ -1492,7 +1583,7 @@
         }
       }
 
-      // 2. Draw PWM Square Wave Oscilloscope (时域PWM方波示波器)
+      // 2. Draw PWM Square Wave Oscilloscope (时域PWM方波示波器，垂直振幅张开)
       function drawOscilloscope(ctx, x0, y0, w, h, activeFreq, duty, isPlaying) {
         drawOscilloscopeGrid(ctx, x0, y0, w, h, false);
 
@@ -1508,10 +1599,10 @@
         ctx.fillStyle = '#10b981';
         ctx.font = `bold ${Math.max(9, Math.floor(9 * (window.devicePixelRatio || 1)))}px monospace`;
         ctx.textAlign = 'left';
-        ctx.fillText('示波器 (PWM0 方波脉冲)', x0 + 8, y0 + 14);
+        ctx.fillText('示波器 (PWM0 方波脉冲 · 纵向波幅)', x0 + 8, y0 + 14);
         ctx.restore();
 
-        if (!isPlaying || activeFreq < 20) {
+        if (!isPlaying || activeFreq < 20 || smoothAmp < 0.01) {
           ctx.beginPath();
           ctx.strokeStyle = '#64748b';
           ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
@@ -1524,16 +1615,10 @@
           return;
         }
 
-        // Calibrated 8ms oscilloscope time window:
-        // Screen shows (activeFreq * 0.008) full periods!
-        // At 125 Hz: 1 period.
-        // At 500 Hz: 4 periods.
-        // At 1000 Hz: 8 periods.
-        // Dense pulses for high frequencies, wide pulses for low frequencies.
         const timeWindowSec = 0.008;
         const totalPeriods = activeFreq * timeWindowSec;
-        const periodPx = w / totalPeriods;
-        const amp = (h * 0.36);
+        const periodPx = w / Math.max(0.5, totalPeriods);
+        const amp = (h * 0.36) * smoothAmp;
 
         ctx.save();
         ctx.strokeStyle = '#10b981';
@@ -1571,15 +1656,26 @@
         const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
-        if (isPlayingAudio && targetFrequency > 0) {
-          smoothFreq += (targetFrequency - smoothFreq) * 0.35;
-          smoothDuty += (targetDuty - smoothDuty) * 0.25;
-        } else {
-          smoothFreq += (0 - smoothFreq) * 0.2;
-          smoothDuty = 0.1;
-        }
+        const isActivelyPlaying = isPlayingAudio && targetFrequency > 0;
 
-        const isActivelyPlaying = isPlayingAudio && smoothFreq > 15;
+        if (isActivelyPlaying) {
+          // 锁定目标频率定位，防止从 0Hz 沿横向由左往右拖动扫屏
+          if (smoothFreq <= 15) {
+            smoothFreq = targetFrequency;
+          } else {
+            smoothFreq += (targetFrequency - smoothFreq) * 0.45;
+          }
+          smoothDuty += (targetDuty - smoothDuty) * 0.25;
+          // 纵向波形与能量从下往上急速跃升生成 (Bottom-to-Top Rise)
+          smoothAmp += (1.0 - smoothAmp) * 0.28;
+        } else {
+          // 停止发声时，波形能量从上向下回落收敛到底部 (Fall to Bottom)
+          smoothAmp += (0 - smoothAmp) * 0.22;
+          smoothDuty = 0.1;
+          if (smoothAmp < 0.02) {
+            smoothFreq = 0;
+          }
+        }
 
         if (visualizerMode === 'dual') {
           const halfH = Math.floor(h / 2);
