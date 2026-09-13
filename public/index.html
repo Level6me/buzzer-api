@@ -2,7 +2,7 @@
 <html lang="zh-CN" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>🔔 Pi Buzzer Console — 树莓派蜂鸣器控制台</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -24,6 +24,12 @@
     }
   </script>
   <style>
+    /* 全局移动端防误触与双指缩放禁用 */
+    html, body {
+      touch-action: pan-y;
+      -webkit-text-size-adjust: 100%;
+    }
+
     /* Glassmorphism & custom styling */
     .glass {
       background: rgba(255, 255, 255, 0.7);
@@ -44,40 +50,69 @@
       box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     }
 
-    /* Piano styling */
+    /* Piano container & keys styling */
+    .piano-scroll-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(6, 182, 212, 0.5) transparent;
+      touch-action: pan-x;
+    }
+    .piano-scroll-container::-webkit-scrollbar {
+      height: 6px;
+    }
+    .piano-scroll-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: 9999px;
+    }
+    .piano-scroll-container::-webkit-scrollbar-thumb {
+      background: rgba(6, 182, 212, 0.5);
+      border-radius: 9999px;
+    }
     .piano-wrapper {
       position: relative;
       user-select: none;
       -webkit-user-select: none;
-      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      touch-action: none;
+    }
+    .piano-key {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+      cursor: pointer;
     }
     .white-key {
       background: linear-gradient(to bottom, #ffffff 0%, #f1f5f9 100%);
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 -3px 0 #cbd5e1;
-      transition: all 0.05s ease;
+      transition: background 0.05s ease, transform 0.05s ease, box-shadow 0.05s ease;
     }
     .dark .white-key {
       background: linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 100%);
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), inset 0 -3px 0 #94a3b8;
     }
-    .white-key:active, .white-key.active {
-      transform: translateY(3px);
-      box-shadow: 0 1px 2px 0 rgba(0,0,0,0.2), inset 0 -1px 0 #cbd5e1;
-      background: #e0f2fe;
+    .white-key.active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 2px 0 rgba(0,0,0,0.2), inset 0 -1px 0 #0284c7;
+      background: #7dd3fc !important;
+      color: #0369a1 !important;
     }
-    .dark .white-key:active, .dark .white-key.active {
-      background: #bae6fd;
+    .dark .white-key.active {
+      background: #38bdf8 !important;
+      color: #082f49 !important;
     }
     .black-key {
       background: linear-gradient(to bottom, #334155 0%, #0f172a 100%);
       box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4), inset 0 -2px 0 #475569;
-      transition: all 0.05s ease;
+      transition: background 0.05s ease, transform 0.05s ease, box-shadow 0.05s ease;
       z-index: 10;
     }
-    .black-key:active, .black-key.active {
-      transform: translateY(2px);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 #334155;
-      background: #0284c7;
+    .black-key.active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 -1px 0 #0369a1;
+      background: #0284c7 !important;
+      color: #ffffff !important;
     }
 
     /* Soundwave pulsating */
@@ -285,167 +320,272 @@
     <!-- ==================== TAB 2: 交互式钢琴键盘 ==================== -->
     <div id="view-piano" class="tab-view hidden space-y-5">
       <div class="glass glass-card rounded-2xl p-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-200/60 dark:border-slate-800/60 pb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-slate-200/60 dark:border-slate-800/60 pb-4">
           <div>
             <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span>🎹 硬件合成虚拟键盘 (Interactive Piano)</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-normal">26 白键 / 44 键完整音域</span>
             </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">双八度 (C4~B5)，点击琴键或在键盘上按 A~K 键实时触发树莓派 GPIO 18 硬件发声</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">支持多指触控 (Multi-Touch)、按住持续长按发声、松开即停、连击滑音及电脑键盘快捷弹奏</p>
           </div>
 
-          <div class="flex items-center gap-3">
-            <span class="text-xs text-slate-500">按键发声时值:</span>
-            <select id="piano-duration" class="px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none">
-              <option value="0.15">短音 (0.15s)</option>
-              <option value="0.3" selected>中音 (0.3s)</option>
-              <option value="0.6">长音 (0.6s)</option>
-              <option value="1.0">全音 (1.0s)</option>
-            </select>
+          <!-- 八度音区快速跳转 -->
+          <div class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+            <span class="text-slate-400 px-1 text-[11px] font-medium hidden md:inline">音区定位:</span>
+            <button onclick="scrollToOctave('c3')" id="btn-octave-c3" class="px-2.5 py-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all font-mono">C3 低音</button>
+            <button onclick="scrollToOctave('c4')" id="btn-octave-c4" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 font-semibold shadow-sm transition-all font-mono">C4 中音 (默认)</button>
+            <button onclick="scrollToOctave('c5')" id="btn-octave-c5" class="px-2.5 py-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all font-mono">C5 高音</button>
+            <button onclick="scrollToOctave('c6')" id="btn-octave-c6" class="px-2.5 py-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all font-mono">C6 超高音</button>
           </div>
         </div>
 
-        <!-- Visual Piano Component -->
-        <div class="overflow-x-auto pb-4 pt-2">
-          <div class="piano-wrapper flex justify-center min-w-[680px] px-4">
+        <!-- Visual Piano Component (26 白键 + 18 黑键 = 44 键) -->
+        <div class="piano-scroll-container pb-4 pt-2 select-none" id="piano-scroll-wrap">
+          <div class="piano-wrapper flex justify-center min-w-max px-4 py-2" id="piano-keyboard">
             
-            <!-- Octave 4 -->
-            <div class="relative flex">
+            <!-- Octave 3 (低音区 C3~B3, 7 白键 + 5 黑键) -->
+            <div class="relative flex flex-shrink-0 select-none" id="octave-c3">
+              <!-- C3 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="C3">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">C3</span>
+              </div>
+              <!-- C#3 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 30px;" data-note="C#3">
+                <span class="text-[9px] font-bold text-white pointer-events-none">C#3</span>
+              </div>
+
+              <!-- D3 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="D3">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">D3</span>
+              </div>
+              <!-- D#3 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 74px;" data-note="D#3">
+                <span class="text-[9px] font-bold text-white pointer-events-none">D#3</span>
+              </div>
+
+              <!-- E3 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="E3">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">E3</span>
+              </div>
+
+              <!-- F3 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="F3">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">F3</span>
+              </div>
+              <!-- F#3 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 162px;" data-note="F#3">
+                <span class="text-[9px] font-bold text-white pointer-events-none">F#3</span>
+              </div>
+
+              <!-- G3 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="G3">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">G3</span>
+              </div>
+              <!-- G#3 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 206px;" data-note="G#3">
+                <span class="text-[9px] font-bold text-white pointer-events-none">G#3</span>
+              </div>
+
+              <!-- A3 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="A3">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">A3</span>
+              </div>
+              <!-- A#3 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 250px;" data-note="A#3">
+                <span class="text-[9px] font-bold text-white pointer-events-none">A#3</span>
+              </div>
+
+              <!-- B3 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="B3">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">B3</span>
+              </div>
+            </div>
+
+            <!-- Octave 4 (中音区 C4~B4, 7 白键 + 5 黑键) -->
+            <div class="relative flex flex-shrink-0 select-none" id="octave-c4">
               <!-- C4 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="C4" data-key="A" onclick="playKeyNote('C4')">
-                <span class="text-xs font-bold text-slate-800">C4</span>
-                <span class="text-[10px] text-slate-400 font-mono">A</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="C4" data-key="A">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">C4</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">A</span>
               </div>
               <!-- C#4 -->
-              <div class="black-key absolute left-8 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="C#4" data-key="W" onclick="playKeyNote('C#4')">
-                <span class="text-[10px] font-bold text-white">C#4</span>
-                <span class="text-[9px] text-slate-400 font-mono">W</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 30px;" data-note="C#4" data-key="W">
+                <span class="text-[9px] font-bold text-white pointer-events-none">C#4</span>
+                <span class="text-[9px] text-cyan-400 font-mono pointer-events-none">W</span>
               </div>
 
               <!-- D4 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="D4" data-key="S" onclick="playKeyNote('D4')">
-                <span class="text-xs font-bold text-slate-800">D4</span>
-                <span class="text-[10px] text-slate-400 font-mono">S</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="D4" data-key="S">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">D4</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">S</span>
               </div>
               <!-- D#4 -->
-              <div class="black-key absolute left-20 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="D#4" data-key="E" onclick="playKeyNote('D#4')">
-                <span class="text-[10px] font-bold text-white">D#4</span>
-                <span class="text-[9px] text-slate-400 font-mono">E</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 74px;" data-note="D#4" data-key="E">
+                <span class="text-[9px] font-bold text-white pointer-events-none">D#4</span>
+                <span class="text-[9px] text-cyan-400 font-mono pointer-events-none">E</span>
               </div>
 
               <!-- E4 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="E4" data-key="D" onclick="playKeyNote('E4')">
-                <span class="text-xs font-bold text-slate-800">E4</span>
-                <span class="text-[10px] text-slate-400 font-mono">D</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="E4" data-key="D">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">E4</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">D</span>
               </div>
 
               <!-- F4 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="F4" data-key="F" onclick="playKeyNote('F4')">
-                <span class="text-xs font-bold text-slate-800">F4</span>
-                <span class="text-[10px] text-slate-400 font-mono">F</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="F4" data-key="F">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">F4</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">F</span>
               </div>
               <!-- F#4 -->
-              <div class="black-key absolute left-44 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="F#4" data-key="T" onclick="playKeyNote('F#4')">
-                <span class="text-[10px] font-bold text-white">F#4</span>
-                <span class="text-[9px] text-slate-400 font-mono">T</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 162px;" data-note="F#4" data-key="T">
+                <span class="text-[9px] font-bold text-white pointer-events-none">F#4</span>
+                <span class="text-[9px] text-cyan-400 font-mono pointer-events-none">T</span>
               </div>
 
               <!-- G4 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="G4" data-key="G" onclick="playKeyNote('G4')">
-                <span class="text-xs font-bold text-slate-800">G4</span>
-                <span class="text-[10px] text-slate-400 font-mono">G</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="G4" data-key="G">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">G4</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">G</span>
               </div>
               <!-- G#4 -->
-              <div class="black-key absolute left-56 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="G#4" data-key="Y" onclick="playKeyNote('G#4')">
-                <span class="text-[10px] font-bold text-white">G#4</span>
-                <span class="text-[9px] text-slate-400 font-mono">Y</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 206px;" data-note="G#4" data-key="Y">
+                <span class="text-[9px] font-bold text-white pointer-events-none">G#4</span>
+                <span class="text-[9px] text-cyan-400 font-mono pointer-events-none">Y</span>
               </div>
 
               <!-- A4 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="A4" data-key="H" onclick="playKeyNote('A4')">
-                <span class="text-xs font-bold text-slate-800">A4</span>
-                <span class="text-[10px] text-slate-400 font-mono">H</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="A4" data-key="H">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">A4</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">H</span>
               </div>
               <!-- A#4 -->
-              <div class="black-key absolute left-68 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" style="left:17rem;" data-note="A#4" data-key="U" onclick="playKeyNote('A#4')">
-                <span class="text-[10px] font-bold text-white">A#4</span>
-                <span class="text-[9px] text-slate-400 font-mono">U</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 250px;" data-note="A#4" data-key="U">
+                <span class="text-[9px] font-bold text-white pointer-events-none">A#4</span>
+                <span class="text-[9px] text-cyan-400 font-mono pointer-events-none">U</span>
               </div>
 
               <!-- B4 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="B4" data-key="J" onclick="playKeyNote('B4')">
-                <span class="text-xs font-bold text-slate-800">B4</span>
-                <span class="text-[10px] text-slate-400 font-mono">J</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="B4" data-key="J">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">B4</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">J</span>
               </div>
             </div>
 
-            <!-- Octave 5 -->
-            <div class="relative flex">
+            <!-- Octave 5 (高音区 C5~B5, 7 白键 + 5 黑键) -->
+            <div class="relative flex flex-shrink-0 select-none" id="octave-c5">
               <!-- C5 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="C5" data-key="K" onclick="playKeyNote('C5')">
-                <span class="text-xs font-bold text-slate-800">C5</span>
-                <span class="text-[10px] text-slate-400 font-mono">K</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="C5" data-key="K">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">C5</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">K</span>
               </div>
               <!-- C#5 -->
-              <div class="black-key absolute left-8 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="C#5" data-key="O" onclick="playKeyNote('C#5')">
-                <span class="text-[10px] font-bold text-white">C#5</span>
-                <span class="text-[9px] text-slate-400 font-mono">O</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 30px;" data-note="C#5" data-key="O">
+                <span class="text-[9px] font-bold text-white pointer-events-none">C#5</span>
+                <span class="text-[9px] text-cyan-400 font-mono pointer-events-none">O</span>
               </div>
 
               <!-- D5 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="D5" data-key="L" onclick="playKeyNote('D5')">
-                <span class="text-xs font-bold text-slate-800">D5</span>
-                <span class="text-[10px] text-slate-400 font-mono">L</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="D5" data-key="L">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">D5</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">L</span>
               </div>
               <!-- D#5 -->
-              <div class="black-key absolute left-20 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="D#5" data-key="P" onclick="playKeyNote('D#5')">
-                <span class="text-[10px] font-bold text-white">D#5</span>
-                <span class="text-[9px] text-slate-400 font-mono">P</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 74px;" data-note="D#5" data-key="P">
+                <span class="text-[9px] font-bold text-white pointer-events-none">D#5</span>
+                <span class="text-[9px] text-cyan-400 font-mono pointer-events-none">P</span>
               </div>
 
               <!-- E5 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="E5" onclick="playKeyNote('E5')">
-                <span class="text-xs font-bold text-slate-800">E5</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="E5" data-key="Semicolon">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">E5</span>
+                <span class="text-[10px] text-cyan-600 dark:text-cyan-700 font-mono font-bold pointer-events-none">;</span>
               </div>
 
               <!-- F5 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="F5" onclick="playKeyNote('F5')">
-                <span class="text-xs font-bold text-slate-800">F5</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="F5">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">F5</span>
               </div>
               <!-- F#5 -->
-              <div class="black-key absolute left-44 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="F#5" onclick="playKeyNote('F#5')">
-                <span class="text-[10px] font-bold text-white">F#5</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 162px;" data-note="F#5">
+                <span class="text-[9px] font-bold text-white pointer-events-none">F#5</span>
               </div>
 
               <!-- G5 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="G5" onclick="playKeyNote('G5')">
-                <span class="text-xs font-bold text-slate-800">G5</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="G5">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">G5</span>
               </div>
               <!-- G#5 -->
-              <div class="black-key absolute left-56 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="G#5" onclick="playKeyNote('G#5')">
-                <span class="text-[10px] font-bold text-white">G#5</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 206px;" data-note="G#5">
+                <span class="text-[9px] font-bold text-white pointer-events-none">G#5</span>
               </div>
 
               <!-- A5 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="A5" onclick="playKeyNote('A5')">
-                <span class="text-xs font-bold text-slate-800">A5</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="A5">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">A5</span>
               </div>
               <!-- A#5 -->
-              <div class="black-key absolute left-68 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" style="left:17rem;" data-note="A#5" onclick="playKeyNote('A#5')">
-                <span class="text-[10px] font-bold text-white">A#5</span>
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 250px;" data-note="A#5">
+                <span class="text-[9px] font-bold text-white pointer-events-none">A#5</span>
               </div>
 
               <!-- B5 -->
-              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="B5" onclick="playKeyNote('B5')">
-                <span class="text-xs font-bold text-slate-800">B5</span>
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="B5">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">B5</span>
+              </div>
+            </div>
+
+            <!-- Octave 6 (超高音区 C6~G6, 5 白键 + 3 黑键) -->
+            <div class="relative flex flex-shrink-0 select-none" id="octave-c6">
+              <!-- C6 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="C6">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">C6</span>
+              </div>
+              <!-- C#6 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 30px;" data-note="C#6">
+                <span class="text-[9px] font-bold text-white pointer-events-none">C#6</span>
+              </div>
+
+              <!-- D6 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="D6">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">D6</span>
+              </div>
+              <!-- D#6 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 74px;" data-note="D#6">
+                <span class="text-[9px] font-bold text-white pointer-events-none">D#6</span>
+              </div>
+
+              <!-- E6 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="E6">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">E6</span>
+              </div>
+
+              <!-- F6 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="F6">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">F6</span>
+              </div>
+              <!-- F#6 -->
+              <div class="piano-key black-key absolute w-7 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 flex-shrink-0" style="left: 162px;" data-note="F#6">
+                <span class="text-[9px] font-bold text-white pointer-events-none">F#6</span>
+              </div>
+
+              <!-- G6 -->
+              <div class="piano-key white-key relative w-11 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 border border-slate-300 dark:border-slate-600 flex-shrink-0" data-note="G6">
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-900 pointer-events-none">G6</span>
               </div>
             </div>
 
           </div>
         </div>
 
-        <div class="mt-4 p-3 bg-slate-100/60 dark:bg-slate-900/40 rounded-xl text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-          <span>💡 提示：在当前页面可直接通过电脑物理键盘 A, W, S, E, D, F, T, G, Y, H, U, J, K, O, L 快速弹奏！</span>
-          <span id="piano-last-note" class="font-mono text-cyan-600 dark:text-cyan-400 font-semibold">上次触发: 无</span>
+        <div class="mt-4 p-3.5 bg-slate-100/70 dark:bg-slate-900/50 rounded-xl text-xs text-slate-500 flex flex-wrap items-center justify-between gap-3 border border-slate-200/50 dark:border-slate-800/50">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-medium">✨ 触控手感升级</span>
+            <span>已启用多指触控 (Multi-Touch) 与连奏滑音 · 长按持续发声 · 松手即停</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-slate-400 hidden sm:inline">键盘快捷键: A~L, W, E, T, Y, U, O, P</span>
+            <span id="piano-last-note" class="font-mono text-cyan-600 dark:text-cyan-400 font-semibold px-2 py-0.5 bg-cyan-50 dark:bg-cyan-950/40 rounded border border-cyan-200/50 dark:border-cyan-800/50">状态: 待命</span>
+          </div>
         </div>
       </div>
     </div>
@@ -743,6 +883,9 @@
       if (activeView) activeView.classList.remove('hidden');
 
       if (tabId === 'history') fetchHistory();
+      if (tabId === 'piano') {
+        setTimeout(() => scrollToOctave('c4'), 60);
+      }
     }
 
     let showHarmonics = true;
@@ -1442,39 +1585,151 @@
       }
     }
 
-    // Piano key player (Instant UI Response & Zero-Latency Feedback)
-    async function playKeyNote(note) {
-      initWebAudio();
-      const dur = parseFloat(document.getElementById('piano-duration').value) || 0.3;
-      const vol = parseInt(document.getElementById('global-volume').value) || 25;
-      const freq = NOTES_FREQ[note] || 440;
-      
-      const keyEl = document.querySelector(`[data-note="${note}"]`);
-      if (keyEl) {
-        keyEl.classList.add('active');
-        setTimeout(() => keyEl.classList.remove('active'), 180);
+    // Octave scrolling
+    function scrollToOctave(oct) {
+      const wrap = document.getElementById('piano-scroll-wrap');
+      const targetEl = document.getElementById('octave-' + oct.toLowerCase());
+      if (wrap && targetEl) {
+        const left = targetEl.offsetLeft - wrap.offsetLeft;
+        wrap.scrollTo({ left: Math.max(0, left - 16), behavior: 'smooth' });
       }
-      document.getElementById('piano-last-note').innerText = `触发音符: ${note} (${dur}s)`;
-
-      // Optimistic instant feedback (< 0ms latency!)
-      handleStatusUpdate({
-        is_playing: true,
-        frequency: freq,
-        duty: Math.min(0.3, vol / 100 * 0.3),
-        note: note,
-        current_item: `按键演奏: ${note}`
+      // 更新八度按钮高亮
+      ['c3', 'c4', 'c5', 'c6'].forEach(k => {
+        const btn = document.getElementById('btn-octave-' + k);
+        if (btn) {
+          if (k === oct.toLowerCase()) {
+            btn.className = 'px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 font-semibold shadow-sm transition-all font-mono';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all font-mono';
+          }
+        }
       });
+    }
 
-      try {
-        await fetch('/api/play/melody', {
+    // ==========================================
+    // Piano Multi-Touch & Press-Hold Audio Engine
+    // ==========================================
+    const touchKeyMap = new Map(); // pointerId/touchId -> keyEl
+    const activeNoteStack = [];    // 按下的音符栈（支持后按优先与抬起智能回退）
+    let currentHardwareNote = null;// 当前硬件发出的音符
+
+    function getKeyFromPoint(x, y) {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return null;
+      return el.closest('.piano-key');
+    }
+
+    function triggerKeyNoteStart(keyEl, touchId = 'mouse') {
+      if (!keyEl) return;
+      initWebAudio();
+      const note = keyEl.dataset.note;
+      if (!note) return;
+
+      // 记录触控点与高亮
+      touchKeyMap.set(touchId, keyEl);
+      keyEl.classList.add('active');
+
+      // 压入音符栈
+      const idx = activeNoteStack.indexOf(note);
+      if (idx !== -1) activeNoteStack.splice(idx, 1);
+      activeNoteStack.push(note);
+
+      syncActivePianoTone();
+    }
+
+    function triggerKeyNoteEnd(touchId = 'mouse') {
+      const prevKey = touchKeyMap.get(touchId);
+      if (prevKey) {
+        touchKeyMap.delete(touchId);
+
+        // 检查是否有其它触控点仍在此琴键上
+        let keyStillHeld = false;
+        for (const [tid, el] of touchKeyMap.entries()) {
+          if (el === prevKey) { keyStillHeld = true; break; }
+        }
+        if (!keyStillHeld) {
+          prevKey.classList.remove('active');
+        }
+
+        const note = prevKey.dataset.note;
+        const idx = activeNoteStack.indexOf(note);
+        if (idx !== -1) activeNoteStack.splice(idx, 1);
+      }
+      syncActivePianoTone();
+    }
+
+    function triggerKeyNoteMove(touchId, x, y) {
+      const newKey = getKeyFromPoint(x, y);
+      const oldKey = touchKeyMap.get(touchId);
+      if (newKey !== oldKey) {
+        if (oldKey) {
+          triggerKeyNoteEnd(touchId);
+        }
+        if (newKey && newKey.classList.contains('piano-key')) {
+          triggerKeyNoteStart(newKey, touchId);
+        }
+      }
+    }
+
+    function syncActivePianoTone() {
+      if (activeNoteStack.length > 0) {
+        const targetNote = activeNoteStack[activeNoteStack.length - 1];
+        if (targetNote === currentHardwareNote) return;
+        currentHardwareNote = targetNote;
+        const freq = NOTES_FREQ[targetNote] || 440;
+        const vol = parseInt(document.getElementById('global-volume').value) || 25;
+        const duty = Math.min(0.3, vol / 100 * 0.3);
+
+        // 1. 本地即时响应（0ms）
+        handleStatusUpdate({
+          is_playing: true,
+          frequency: freq,
+          duty: duty,
+          note: targetNote,
+          current_item: `按键演奏: ${targetNote}`
+        });
+        const noteBadge = document.getElementById('piano-last-note');
+        if (noteBadge) noteBadge.innerText = `按键发声: ${targetNote} (${freq}Hz)`;
+
+        // 2. 硬件 PWM 发声
+        fetch('/api/piano/press', {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({
-            notes: [[note, dur]],
-            volume: vol
-          })
-        });
-      } catch (e) {}
+          body: JSON.stringify({ note: targetNote, frequency: freq, volume: vol })
+        }).catch(() => {});
+      } else {
+        if (currentHardwareNote !== null) {
+          const stoppedNote = currentHardwareNote;
+          currentHardwareNote = null;
+
+          handleStatusUpdate({
+            is_playing: false,
+            frequency: 0,
+            duty: 0,
+            note: '',
+            current_item: '待命 (停止)'
+          });
+          const noteBadge = document.getElementById('piano-last-note');
+          if (noteBadge) noteBadge.innerText = `松开停止: ${stoppedNote}`;
+
+          fetch('/api/piano/release', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ note: stoppedNote })
+          }).catch(() => {});
+        }
+      }
+    }
+
+    // 点击事件备用兼容接口
+    async function playKeyNote(note) {
+      initWebAudio();
+      const keyEl = document.querySelector(`.piano-key[data-note="${note}"]`);
+      if (!keyEl) return;
+      triggerKeyNoteStart(keyEl, 'click_' + note);
+      setTimeout(() => {
+        triggerKeyNoteEnd('click_' + note);
+      }, 200);
     }
 
     // Tone synthesizer
@@ -1603,21 +1858,121 @@
       } catch (e) {}
     }
 
-    // Keyboard bindings for Piano
+    // ==========================================
+    // 全局防误触与双指缩放彻底禁用
+    // ==========================================
+    document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+
+    // 阻止屏幕双指或多指缩放手势
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // 阻止移动端双击页面放大 (double-tap to zoom)
+    let lastGlobalTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastGlobalTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastGlobalTouchEnd = now;
+    }, { passive: false });
+
+    // ==========================================
+    // 键盘绑定与多指触控事件系统挂载
+    // ==========================================
     const KEY_MAP = {
       'KeyA': 'C4', 'KeyW': 'C#4', 'KeyS': 'D4', 'KeyE': 'D#4', 'KeyD': 'E4',
       'KeyF': 'F4', 'KeyT': 'F#4', 'KeyG': 'G4', 'KeyY': 'G#4', 'KeyH': 'A4',
       'KeyU': 'A#4', 'KeyJ': 'B4', 'KeyK': 'C5', 'KeyO': 'C#5', 'KeyL': 'D5',
-      'KeyP': 'D#5'
+      'KeyP': 'D#5', 'Semicolon': 'E5', 'Quote': 'F5'
     };
 
-    window.addEventListener('keydown', (e) => {
-      // Don't trigger if user is typing in inputs/textareas
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-      if (KEY_MAP[e.code]) {
-        playKeyNote(KEY_MAP[e.code]);
-      }
-    });
+    function initPianoEventListeners() {
+      const pianoEl = document.getElementById('piano-keyboard');
+      if (!pianoEl) return;
+
+      // 1. 原生多指触摸事件 (Multi-touch，同时支持连击与刮奏滑音)
+      pianoEl.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        initWebAudio();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          const key = getKeyFromPoint(t.clientX, t.clientY);
+          if (key) triggerKeyNoteStart(key, t.identifier);
+        }
+      }, { passive: false });
+
+      pianoEl.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          triggerKeyNoteMove(t.identifier, t.clientX, t.clientY);
+        }
+      }, { passive: false });
+
+      const onTouchEndOrCancel = (e) => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          triggerKeyNoteEnd(t.identifier);
+        }
+      };
+      pianoEl.addEventListener('touchend', onTouchEndOrCancel, { passive: false });
+      pianoEl.addEventListener('touchcancel', onTouchEndOrCancel, { passive: false });
+
+      // 2. 桌面端鼠标按压与拖拽演奏
+      let isPianoMouseDown = false;
+      pianoEl.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isPianoMouseDown = true;
+        const key = getKeyFromPoint(e.clientX, e.clientY);
+        if (key) triggerKeyNoteStart(key, 'mouse');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isPianoMouseDown) return;
+        triggerKeyNoteMove('mouse', e.clientX, e.clientY);
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (isPianoMouseDown) {
+          isPianoMouseDown = false;
+          triggerKeyNoteEnd('mouse');
+        }
+      });
+
+      // 3. 电脑物理键盘按压与长按持续发声 (松开即停)
+      const pressedKeyCodes = new Set();
+      window.addEventListener('keydown', (e) => {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+        if (e.repeat) return; // 忽略系统按键连击 repeat
+        const note = KEY_MAP[e.code];
+        if (note && !pressedKeyCodes.has(e.code)) {
+          pressedKeyCodes.add(e.code);
+          const keyEl = document.querySelector(`.piano-key[data-note="${note}"]`);
+          if (keyEl) triggerKeyNoteStart(keyEl, 'kbd_' + e.code);
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+        if (pressedKeyCodes.has(e.code)) {
+          pressedKeyCodes.delete(e.code);
+          triggerKeyNoteEnd('kbd_' + e.code);
+        }
+      });
+    }
 
     function copyCode(id) {
       const text = document.getElementById(id).innerText;
@@ -1633,12 +1988,16 @@
       initSSE();
       fetchStatus();
       updateComposerFeedback();
+      initPianoEventListeners();
 
       const savedToken = localStorage.getItem('buzzer_api_token');
       if (savedToken) document.getElementById('api-token-input').value = savedToken;
 
       pollTimer = setInterval(fetchStatus, 2500);
       window.addEventListener('pointerdown', () => { initWebAudio(); }, { once: true });
+
+      // 默认平滑居中到 C4 中音区
+      setTimeout(() => scrollToOctave('c4'), 150);
     });
   </script>
 </body>

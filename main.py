@@ -150,6 +150,17 @@ class MelodyRequest(BaseModel):
     duty: Optional[float] = None
 
 
+class PianoPressRequest(BaseModel):
+    note: Optional[str] = None
+    frequency: Optional[float] = None
+    volume: Optional[int] = None
+    duty: Optional[float] = None
+
+
+class PianoReleaseRequest(BaseModel):
+    note: Optional[str] = None
+
+
 @app.middleware('http')
 async def token_check(request: Request, call_next):
     # 静态文件、根路径与只读状态/SSE接口免 Token 验证
@@ -336,3 +347,29 @@ async def stop(request: Request):
     record_history('操作 (Control)', '紧急静音/停止', 0, 0, 0, client_ip)
     await asyncio.to_thread(buzzer.stop)
     return {'ok': True, 'message': 'Buzzer playback stopped'}
+
+
+@app.post('/api/piano/press')
+async def piano_press(req: PianoPressRequest, request: Request):
+    freq = req.frequency
+    note_name = req.note
+    if not freq and req.note:
+        clean_note = req.note.strip().upper()
+        freq = NOTES.get(clean_note, 0)
+    if not freq or freq <= 0:
+        raise HTTPException(400, 'Invalid note or frequency')
+
+    duty = resolve_duty(req.volume, req.duty)
+    await asyncio.to_thread(buzzer.start_tone, freq, duty, note_name)
+    return {'ok': True, 'frequency': freq, 'note': note_name}
+
+
+@app.post('/api/piano/release')
+async def piano_release(req: Optional[PianoReleaseRequest] = None):
+    if req and req.note:
+        clean_note = req.note.strip().upper()
+        if buzzer.current_note and buzzer.current_note.upper() != clean_note:
+            return {'ok': True, 'ignored': True}
+    await asyncio.to_thread(buzzer.stop)
+    return {'ok': True, 'stopped': True}
+

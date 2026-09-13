@@ -104,6 +104,18 @@ class Buzzer:
         except Exception:
             pass
 
+    def start_tone(self, frequency, duty=None, note_name=None):
+        duty = self.duty_default if duty is None else duty
+        self._stop_flag = True
+        self._ensure()
+        self.is_playing = True
+        self.current_frequency = frequency
+        self.current_duty = duty
+        self.current_note = note_name or freq_to_note_name(frequency)
+        self.current_item = f"琴键演奏: {self.current_note}"
+        self._set_tone(frequency, duty)
+        self._notify()
+
     def play_tone(self, frequency, duration, duty=None):
         duty = self.duty_default if duty is None else duty
         self._stop_flag = False
