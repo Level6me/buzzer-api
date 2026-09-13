@@ -319,9 +319,6 @@
         <!-- Canvas Display Area -->
         <div class="h-40 sm:h-48 w-full rounded-lg overflow-hidden relative bg-black/40">
           <canvas id="wave-canvas" class="w-full h-full block cursor-crosshair"></canvas>
-          <div id="canvas-overlay-tag" class="absolute top-2 left-2 pointer-events-none text-[10px] font-mono text-cyan-500/80 bg-slate-950/80 px-2 py-0.5 rounded border border-cyan-900/50">
-            REALTIME DUAL SPECTRUM & OSCILLOSCOPE (60 FPS)
-          </div>
         </div>
     </section>
 
@@ -1005,12 +1002,6 @@
         activeBtn.classList.add('active', 'bg-cyan-500', 'text-white', 'shadow-sm');
         activeBtn.classList.remove('text-slate-400');
       }
-      const overlay = document.getElementById('canvas-overlay-tag');
-      if (overlay) {
-        if (mode === 'dual') overlay.innerText = 'REALTIME DUAL SPECTRUM & OSCILLOSCOPE (60 FPS)';
-        else if (mode === 'spectrum') overlay.innerText = 'REALTIME FREQUENCY SPECTRUM (FFT 20Hz - 5kHz)';
-        else overlay.innerText = 'REALTIME PWM SQUARE OSCILLOSCOPE (GPIO18 PWM0)';
-      }
     }
 
     function toggleHarmonics() {
@@ -1344,7 +1335,7 @@
         ctx.fillStyle = '#06b6d4';
         ctx.font = `bold ${Math.max(9, Math.floor(9 * (window.devicePixelRatio || 1)))}px monospace`;
         ctx.textAlign = 'left';
-        ctx.fillText('频谱 (FFT 20Hz-5kHz 频率能量分布 · 纵向跃升)', x0 + 8, y0 + 14);
+        ctx.fillText('频谱 (FFT 20Hz-5kHz 频率能量分布)', x0 + 10, y0 + 16);
         ctx.restore();
 
         const baseY = y0 + h - 16;
@@ -1545,7 +1536,7 @@
         ctx.fillStyle = '#10b981';
         ctx.font = `bold ${Math.max(9, Math.floor(9 * (window.devicePixelRatio || 1)))}px monospace`;
         ctx.textAlign = 'left';
-        ctx.fillText('示波器 (PWM0 方波脉冲 · 纵向波幅)', x0 + 8, y0 + 14);
+        ctx.fillText('示波器 (PWM0 方波脉冲)', x0 + 10, y0 + 16);
         ctx.restore();
 
         if (!isPlaying || activeFreq < 20 || smoothAmp < 0.01) {
