@@ -254,19 +254,24 @@
       <!-- Volume & Filter Controller -->
       <div class="glass glass-card rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
         <!-- Filter chips -->
-        <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
-          <button onclick="filterCategory('all')" class="cat-chip active px-3 py-1 text-xs font-semibold rounded-lg bg-cyan-500 text-white shadow-sm">全部</button>
-          <button onclick="filterCategory('提示音')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">提示音</button>
-          <button onclick="filterCategory('状态音')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">状态音</button>
-          <button onclick="filterCategory('经典游戏')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">经典游戏</button>
-          <button onclick="filterCategory('名曲旋律')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">名曲名段</button>
+        <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto no-scrollbar">
+          <button onclick="filterCategory('all')" class="cat-chip active px-3 py-1.5 text-xs font-semibold rounded-lg bg-cyan-500 text-white shadow-sm whitespace-nowrap">全部 (34)</button>
+          <button onclick="filterCategory('世界名曲')" class="cat-chip px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 whitespace-nowrap">世界名曲 (7)</button>
+          <button onclick="filterCategory('经典影视')" class="cat-chip px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 whitespace-nowrap">经典影视 (5)</button>
+          <button onclick="filterCategory('经典游戏')" class="cat-chip px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 whitespace-nowrap">经典游戏 (7)</button>
+          <button onclick="filterCategory('经典民谣')" class="cat-chip px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 whitespace-nowrap">经典民谣 (4)</button>
+          <button onclick="filterCategory('提示音效')" class="cat-chip px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 whitespace-nowrap">提示音效 (11)</button>
         </div>
 
-        <!-- Global Volume Slider -->
-        <div class="flex items-center gap-3 w-full md:w-72">
-          <span class="text-xs font-medium text-slate-500 whitespace-nowrap">全局音量:</span>
-          <input type="range" id="global-volume" min="1" max="100" value="25" oninput="updateVolumeLabel(this.value)" class="w-full accent-cyan-500 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer">
-          <span id="global-volume-val" class="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400 w-10">25%</span>
+        <!-- Search & Global Volume Slider -->
+        <div class="flex items-center gap-3 w-full md:w-auto flex-wrap">
+          <input type="text" id="melody-search" placeholder="🔍 搜索旋律曲目..." oninput="renderMelodies()" class="px-3 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500 w-36 sm:w-44">
+
+          <div class="flex items-center gap-2 w-48 sm:w-60">
+            <span class="text-xs font-medium text-slate-500 whitespace-nowrap">音量:</span>
+            <input type="range" id="global-volume" min="1" max="100" value="25" oninput="updateVolumeLabel(this.value)" class="w-full accent-cyan-500 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer">
+            <span id="global-volume-val" class="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400 w-10">25%</span>
+          </div>
         </div>
       </div>
 
@@ -1375,12 +1380,21 @@
 
     function renderMelodies() {
       const container = document.getElementById('melodies-grid');
-      const filtered = currentCategory === 'all' 
+      const searchKey = (document.getElementById('melody-search')?.value || '').trim().toLowerCase();
+      let filtered = currentCategory === 'all' 
         ? allMelodies 
         : allMelodies.filter(m => m.category === currentCategory);
 
+      if (searchKey) {
+        filtered = filtered.filter(m => 
+          (m.title && m.title.toLowerCase().includes(searchKey)) ||
+          (m.desc && m.desc.toLowerCase().includes(searchKey)) ||
+          (m.id && m.id.toLowerCase().includes(searchKey))
+        );
+      }
+
       if (!filtered.length) {
-        container.innerHTML = '<div class="col-span-full text-center py-10 text-slate-400">该分类下暂无预设旋律</div>';
+        container.innerHTML = '<div class="col-span-full text-center py-10 text-slate-400">未找到匹配的预设旋律</div>';
         return;
       }
 

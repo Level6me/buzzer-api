@@ -36,10 +36,23 @@ def on_buzzer_status_change(status_dict):
 
 buzzer.add_listener(on_buzzer_status_change)
 
+is_shutting_down = False
+
 @app.on_event('startup')
 async def on_startup():
-    global main_event_loop
+    global main_event_loop, is_shutting_down
+    is_shutting_down = False
     main_event_loop = asyncio.get_running_loop()
+
+@app.on_event('shutdown')
+async def on_shutdown():
+    global is_shutting_down
+    is_shutting_down = True
+    for q in list(sse_subscribers):
+        try:
+            q.put_nowait({'shutdown': True})
+        except Exception:
+            pass
 
 # 内存日志队列（保留最近 50 条播放记录）
 history_log = collections.deque(maxlen=50)
@@ -205,12 +218,16 @@ async def events_stream(request: Request):
         last_sys_heartbeat = time.time()
         try:
             while True:
-                if await request.is_disconnected():
+                if is_shutting_down or await request.is_disconnected():
                     break
                 try:
                     data = await asyncio.wait_for(q.get(), timeout=1.0)
+                    if not data or (isinstance(data, dict) and data.get('shutdown')):
+                        break
                     yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
                 except asyncio.TimeoutError:
+                    if is_shutting_down:
+                        break
                     now = time.time()
                     if now - last_sys_heartbeat >= 2.5:
                         last_sys_heartbeat = now
