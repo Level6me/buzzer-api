@@ -349,57 +349,6 @@
 
     <!-- ==================== TAB 1: 预设旋律库 ==================== -->
     <div id="view-melodies" class="tab-view space-y-5">
-      <!-- Melody Stage: 旋律同步钢琴演奏台 -->
-      <div id="melody-piano-stage" class="glass glass-card rounded-2xl p-4 sm:p-5 border border-cyan-500/30 shadow-lg shadow-cyan-500/5 relative overflow-hidden transition-all duration-300">
-        <!-- 舞台控制与状态栏 -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
-          <div class="flex items-center gap-2.5">
-            <span class="text-xl sm:text-2xl p-2 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">🎹</span>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span>旋律同步钢琴演奏台</span>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-normal">实时联动</span>
-                </h3>
-                <span id="melody-stage-note-badge" class="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">待命中</span>
-              </div>
-              <p id="melody-stage-desc" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">播放预设旋律时，琴键将在此实时同步高亮并呈现物理按压击键动效</p>
-            </div>
-          </div>
-
-          <!-- 工具条：自动跟随开关、八度定位、收起/展开 -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <!-- 镜头跟随开关 -->
-            <button id="btn-toggle-autoscroll" onclick="toggleAutoScroll()" class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/60 hover:bg-cyan-100 flex items-center gap-1" title="随旋律音高自动平滑滑动琴键窗口">
-              <span class="autoscroll-icon">🎯</span>
-              <span class="autoscroll-text">跟随音区: 开</span>
-            </button>
-
-            <!-- 八度快速定位 -->
-            <div class="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-mono">
-              <button onclick="scrollToStageOctave('c3')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">C3</button>
-              <button onclick="scrollToStageOctave('c4')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">C4</button>
-              <button onclick="scrollToStageOctave('c5')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">C5</button>
-              <button onclick="scrollToStageOctave('c6')" class="px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">C6</button>
-            </div>
-
-            <!-- 收起 / 展开 -->
-            <button onclick="toggleMelodyStageCollapse()" id="btn-stage-collapse" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all flex items-center gap-1" title="收起或展开钢琴舞台">
-              <span id="stage-collapse-icon">🔼</span>
-              <span id="stage-collapse-text">收起</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 键盘滚动视口 -->
-        <div id="melody-stage-body" class="transition-all duration-300">
-          <div class="piano-scroll-container pb-2 pt-1 select-none" id="melody-piano-scroll-wrap">
-            <div class="piano-wrapper flex justify-center min-w-max px-2 py-1" id="melody-piano-keyboard">
-              <!-- JS 初始化时自动挂载 44 键完整钢琴键盘 -->
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- Volume & Filter Controller -->
       <div class="glass glass-card rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -1925,8 +1874,6 @@
     }
 
     function updatePianoJukeboxStatus(note, isPlaying, freq, itemName) {
-      const melodyStageBadge = document.getElementById('melody-stage-note-badge');
-      const melodyStageDesc = document.getElementById('melody-stage-desc');
       const pianoLastNote = document.getElementById('piano-last-note');
       const pianoPlayBtn = document.getElementById('btn-piano-play-melody');
       const pianoPlayText = document.getElementById('piano-play-text');
@@ -1937,13 +1884,6 @@
         const displayFreq = freq ? (Math.round(freq) + 'Hz') : '';
         const title = itemName || '旋律演奏中';
 
-        if (melodyStageBadge) {
-          melodyStageBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-500 animate-ping"></span><span>按键: ${displayNote} ${displayFreq ? '(' + displayFreq + ')' : ''}</span>`;
-          melodyStageBadge.className = 'px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 flex items-center gap-1.5';
-        }
-        if (melodyStageDesc) {
-          melodyStageDesc.innerText = `正在演奏: 《${title}》 · 实时对应琴键跳动按压中`;
-        }
         if (pianoLastNote) {
           pianoLastNote.innerText = `自动演奏: ${displayNote} (${displayFreq || title})`;
           pianoLastNote.className = 'font-mono text-cyan-600 dark:text-cyan-400 font-bold px-2 py-0.5 bg-cyan-100 dark:bg-cyan-950/60 rounded border border-cyan-300 dark:border-cyan-700';
@@ -1954,18 +1894,8 @@
           if (pianoPlayIcon) pianoPlayIcon.innerHTML = '<span class="flex items-center gap-0.5 h-3"><span class="playing-bar"></span><span class="playing-bar"></span><span class="playing-bar"></span></span>';
         }
       } else if (isPlaying && note === 'REST') {
-        if (melodyStageBadge) {
-          melodyStageBadge.innerHTML = `<span>休止符 (REST)</span>`;
-          melodyStageBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-mono text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700';
-        }
+        // 休止符
       } else {
-        if (melodyStageBadge) {
-          melodyStageBadge.innerHTML = `<span>待命中</span>`;
-          melodyStageBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700';
-        }
-        if (melodyStageDesc) {
-          melodyStageDesc.innerText = '播放预设旋律时，琴键将在此实时同步高亮并呈现物理按压击键动效';
-        }
         if (pianoLastNote) {
           pianoLastNote.innerText = '状态: 待命就绪';
           pianoLastNote.className = 'font-mono text-slate-500 font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700';
@@ -1993,32 +1923,6 @@
       showToast(autoScrollPiano ? '已开启琴键跟随音区自动滑动' : '已关闭自动跟随，您可以自由拖动键盘', '🎯');
     }
 
-    function toggleMelodyStageCollapse() {
-      const body = document.getElementById('melody-stage-body');
-      const icon = document.getElementById('stage-collapse-icon');
-      const text = document.getElementById('stage-collapse-text');
-      if (!body) return;
-      const isHidden = body.classList.contains('hidden');
-      if (isHidden) {
-        body.classList.remove('hidden');
-        if (icon) icon.innerText = '🔼';
-        if (text) text.innerText = '收起';
-      } else {
-        body.classList.add('hidden');
-        if (icon) icon.innerText = '🔽';
-        if (text) text.innerText = '展开';
-      }
-    }
-
-    function scrollToStageOctave(oct) {
-      const wrap = document.getElementById('melody-piano-scroll-wrap');
-      if (!wrap) return;
-      const targetEl = wrap.querySelector('#octave-' + oct.toLowerCase());
-      if (targetEl) {
-        const left = targetEl.offsetLeft - wrap.offsetLeft;
-        wrap.scrollTo({ left: Math.max(0, left - 16), behavior: 'smooth' });
-      }
-    }
 
     function populatePianoMelodySelect() {
       const select = document.getElementById('piano-melody-select');
@@ -2092,14 +1996,6 @@
       });
     }
 
-    function setupMelodyStagePiano() {
-      const srcKeyboard = document.getElementById('piano-keyboard');
-      const targetKeyboard = document.getElementById('melody-piano-keyboard');
-      if (srcKeyboard && targetKeyboard && !targetKeyboard.hasChildNodes()) {
-        targetKeyboard.innerHTML = srcKeyboard.innerHTML;
-        bindPianoEventListenersToElement(targetKeyboard);
-      }
-    }
 
     // ==========================================
     // Piano Multi-Touch & Press-Hold Audio Engine
@@ -2487,7 +2383,6 @@
       initSSE();
       fetchStatus();
       updateComposerFeedback();
-      setupMelodyStagePiano();
       initPianoEventListeners();
 
       const savedToken = localStorage.getItem('buzzer_api_token');
@@ -2499,7 +2394,6 @@
       // 默认平滑居中到 C4 中音区
       setTimeout(() => {
         scrollToOctave('c4');
-        scrollToStageOctave('c4');
       }, 150);
     });
   </script>
