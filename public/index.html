@@ -230,48 +230,55 @@
   <!-- Main Container -->
   <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-    <!-- Top Live Audio Status & System Panel -->
-    <section class="glass glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden space-y-4">
+    <!-- Top Live Audio Status & System Panel (Sticky Floating) -->
+    <section id="live-monitor-section" class="sticky top-16 z-30 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-slate-800/90 shadow-xl shadow-slate-900/10 dark:shadow-black/50 relative overflow-hidden space-y-3 transition-all duration-300">
       <!-- Row 1: Status & Hardware Metrics -->
-      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
         
         <!-- Left: Status Indicator & Current Item -->
-        <div class="flex items-center gap-4">
-          <div id="status-glow" class="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl border border-slate-200 dark:border-slate-700 transition-all flex-shrink-0">
+        <div class="flex items-center gap-3 sm:gap-4">
+          <div id="status-glow" class="relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xl sm:text-2xl border border-slate-200 dark:border-slate-700 transition-all flex-shrink-0">
             <span id="status-icon">⏸️</span>
             <div id="radar-ring" class="hidden absolute inset-0 rounded-2xl bg-cyan-500/30 sound-pulse pointer-events-none"></div>
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span id="status-text" class="text-sm font-bold text-slate-500 dark:text-slate-400">空闲静音中 (Idle)</span>
+              <span id="status-text" class="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">空闲静音中 (Idle)</span>
               <span id="live-note-badge" class="hidden text-xs px-2 py-0.5 rounded-full font-bold bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-mono">--</span>
             </div>
-            <h2 id="current-song-title" class="text-lg font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-md">
+            <h2 id="current-song-title" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-md">
               就绪状态
             </h2>
-            <p id="current-tone-detail" class="text-xs font-mono text-cyan-600 dark:text-cyan-400">PWM0: 0 Hz | 占空比: 0%</p>
+            <p id="current-tone-detail" class="text-[11px] sm:text-xs font-mono text-cyan-600 dark:text-cyan-400">PWM0: 0 Hz | 占空比: 0%</p>
           </div>
         </div>
 
-        <!-- Right: Hardware & System Metrics -->
-        <div class="grid grid-cols-3 gap-3 text-center sm:w-auto w-full">
-          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[90px]">
-            <span class="text-[10px] uppercase font-semibold text-slate-400">CPU 温度</span>
-            <div id="sys-temp" class="text-sm font-bold text-slate-800 dark:text-slate-200">-- °C</div>
+        <!-- Right: Hardware & System Metrics & Collapse Toggle -->
+        <div class="flex items-center gap-2.5 sm:gap-3 justify-between sm:justify-end w-full lg:w-auto flex-wrap">
+          <div class="grid grid-cols-3 gap-2 text-center flex-1 sm:flex-initial">
+            <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-1.5 sm:p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[70px] sm:min-w-[90px]">
+              <span class="text-[9px] sm:text-[10px] uppercase font-semibold text-slate-400">CPU 温度</span>
+              <div id="sys-temp" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">-- °C</div>
+            </div>
+            <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-1.5 sm:p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[70px] sm:min-w-[90px]">
+              <span class="text-[9px] sm:text-[10px] uppercase font-semibold text-slate-400">系统负载</span>
+              <div id="sys-load" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">--</div>
+            </div>
+            <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-1.5 sm:p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[70px] sm:min-w-[90px]">
+              <span class="text-[9px] sm:text-[10px] uppercase font-semibold text-slate-400">运行时长</span>
+              <div id="sys-uptime" class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">-- h</div>
+            </div>
           </div>
-          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[90px]">
-            <span class="text-[10px] uppercase font-semibold text-slate-400">系统负载</span>
-            <div id="sys-load" class="text-sm font-bold text-slate-800 dark:text-slate-200">--</div>
-          </div>
-          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[90px]">
-            <span class="text-[10px] uppercase font-semibold text-slate-400">运行时长</span>
-            <div id="sys-uptime" class="text-sm font-bold text-slate-800 dark:text-slate-200">-- h</div>
-          </div>
+
+          <button id="btn-toggle-monitor-collapse" onclick="toggleMonitorCollapse()" class="px-2.5 py-1.5 rounded-xl bg-slate-200/70 hover:bg-slate-300 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 whitespace-nowrap shadow-sm" title="折叠或展开示波器视口，自由调节屏幕空间">
+            <span id="monitor-collapse-icon">🔼</span>
+            <span id="monitor-collapse-text" class="hidden sm:inline">收起示波器</span>
+          </button>
         </div>
       </div>
 
       <!-- Row 2: High-Precision Audio Oscilloscope & Frequency Spectrum Visualizer -->
-      <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 shadow-inner relative flex flex-col gap-2">
+      <div id="monitor-visualizer-row" class="bg-slate-950 rounded-xl p-3 border border-slate-800 shadow-inner relative flex flex-col gap-2 transition-all duration-300">
         <!-- Visualizer Toolbar -->
         <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-800/80">
           
@@ -1010,6 +1017,32 @@
     if (localStorage.getItem('buzzer_theme') === 'light') {
       document.documentElement.classList.remove('dark');
       document.getElementById('theme-icon').innerText = '☀️';
+    }
+
+    // Monitor Collapse Toggle
+    function toggleMonitorCollapse() {
+      const row = document.getElementById('monitor-visualizer-row');
+      const icon = document.getElementById('monitor-collapse-icon');
+      const text = document.getElementById('monitor-collapse-text');
+      if (!row) return;
+      const isHidden = row.classList.contains('hidden');
+      if (isHidden) {
+        row.classList.remove('hidden');
+        if (icon) icon.innerText = '🔼';
+        if (text) text.innerText = '收起示波器';
+        setTimeout(() => {
+          const canvas = document.getElementById('wave-canvas');
+          if (canvas) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = Math.floor(rect.width * (window.devicePixelRatio || 1));
+            canvas.height = Math.floor(rect.height * (window.devicePixelRatio || 1));
+          }
+        }, 60);
+      } else {
+        row.classList.add('hidden');
+        if (icon) icon.innerText = '🔽';
+        if (text) text.innerText = '展开示波器';
+      }
     }
 
     // Tab Switcher
