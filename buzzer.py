@@ -166,11 +166,8 @@ class Buzzer:
                         time.sleep(min(step, dur - elapsed))
                         elapsed += step
                     
-                    # 音符间微小静音断音，避免相同音连成一体
+                    # 音符间微小静音断音，避免相同音连成一体（仅硬件关断PWM防连音，不向网络频繁触发瞬态空包）
                     self._disable_pwm()
-                    self.current_frequency = 0
-                    self.current_note = 'REST'
-                    self._notify()
                     time.sleep(0.015)
         finally:
             self.stop()

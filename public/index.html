@@ -242,8 +242,8 @@
           </div>
 
           <div class="flex items-center gap-2 min-w-0 flex-wrap">
-            <span id="status-text" class="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">空闲静音中</span>
-            <span id="live-note-badge" class="hidden text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-mono">--</span>
+            <span id="status-text" class="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap min-w-[95px]">空闲静音中</span>
+            <span id="live-note-badge" class="hidden text-[10px] px-2 py-0.5 rounded-full font-bold bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-mono min-w-[36px] text-center inline-flex items-center justify-center">--</span>
             <span class="text-slate-300 dark:text-slate-700 text-xs hidden sm:inline">•</span>
             <h2 id="current-song-title" class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate max-w-[140px] sm:max-w-xs">
               就绪状态
@@ -302,11 +302,11 @@
 
           <!-- Real-time HUD Badges & Web Audio Button -->
           <div class="flex items-center gap-2 flex-wrap text-xs font-mono">
-            <div id="hud-badges" class="flex items-center gap-1.5 flex-wrap">
-              <span id="hud-freq" class="px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold">频率: 0 Hz</span>
-              <span id="hud-note" class="px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold">音符: --</span>
-              <span id="hud-period" class="hidden sm:inline-block px-2 py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400">周期: -- ms</span>
-              <span id="hud-duty" class="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400">占空比: 0%</span>
+            <div id="hud-badges" class="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5">
+              <span id="hud-freq" class="w-[98px] text-center inline-block px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">频率: 0 Hz</span>
+              <span id="hud-note" class="w-[82px] text-center inline-block px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold font-mono tabular-nums whitespace-nowrap flex-shrink-0">音符: --</span>
+              <span id="hud-period" class="w-[98px] text-center hidden sm:inline-block px-2 py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">周期: -- ms</span>
+              <span id="hud-duty" class="w-[80px] text-center hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono tabular-nums whitespace-nowrap flex-shrink-0">占空比: 0%</span>
             </div>
 
             <button id="btn-audio-sync" onclick="toggleWebAudioSync()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-700 text-slate-300 hover:border-cyan-500 transition-all flex items-center gap-1.5 active:scale-95" title="在当前浏览器扬声器同步发声试听">
@@ -1717,6 +1717,9 @@
     }
 
     // Central Status Handler (Millisecond Reaction)
+    let lastActiveSongTitle = '';
+
+    // Central Status Handler (Millisecond Reaction with Layout Stabilization)
     function handleStatusUpdate(data) {
       isPlayingAudio = Boolean(data.is_playing);
       targetFrequency = Number(data.frequency) || 0;
@@ -1737,35 +1740,62 @@
       const hudPeriod = document.getElementById('hud-period');
       const hudDuty = document.getElementById('hud-duty');
 
-      if (isPlayingAudio && targetFrequency > 0) {
+      if (isPlayingAudio) {
+        // 播放中主状态：稳定保持正在发声中，绝不随音符切换或瞬时断音反复跳回空闲
         statusText.innerText = '正在发声中 (Playing)';
-        statusText.className = 'text-sm font-bold text-cyan-600 dark:text-cyan-400';
+        statusText.className = 'text-xs sm:text-sm font-bold text-cyan-600 dark:text-cyan-400 whitespace-nowrap min-w-[95px]';
         statusIcon.innerText = '🎵';
-        songTitle.innerText = currentItemName || (currentNote ? `${currentNote} (${targetFrequency}Hz)` : '硬件音频发声中');
-        toneDetail.innerText = `PWM0: ${targetFrequency} Hz | 音符: ${currentNote || '--'} | 占空比: ${(targetDuty * 100).toFixed(1)}%`;
+
+        if (currentItemName) {
+          lastActiveSongTitle = currentItemName;
+        }
+        songTitle.innerText = lastActiveSongTitle || currentItemName || (currentNote ? `${currentNote} (${targetFrequency}Hz)` : '硬件音频发声中');
         radarRing.classList.remove('hidden');
         statusGlow.className = 'relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-100 dark:bg-cyan-950/80 text-xs sm:text-sm border border-cyan-400 shadow-sm shadow-cyan-500/30 flex-shrink-0';
-        
-        if (noteBadge) {
-          noteBadge.innerText = currentNote || `${targetFrequency}Hz`;
-          noteBadge.classList.remove('hidden');
-        }
 
-        const periodMs = (1000 / targetFrequency).toFixed(2);
-        hudFreq.innerText = `频率: ${targetFrequency} Hz`;
-        hudNote.innerText = `音符: ${currentNote || '--'}`;
-        hudPeriod.innerText = `周期: ${periodMs} ms`;
-        hudDuty.innerText = `占空比: ${(targetDuty * 100).toFixed(0)}%`;
+        if (targetFrequency > 0) {
+          toneDetail.innerText = `PWM0: ${targetFrequency} Hz | 音符: ${currentNote || '--'} | 占空比: ${(targetDuty * 100).toFixed(1)}%`;
+          
+          if (noteBadge) {
+            noteBadge.innerText = currentNote || `${targetFrequency}Hz`;
+            noteBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-mono min-w-[36px] text-center inline-flex items-center justify-center transition-colors duration-150';
+            noteBadge.classList.remove('hidden');
+          }
+
+          const periodMs = (1000 / targetFrequency).toFixed(2);
+          hudFreq.innerText = `频率: ${targetFrequency} Hz`;
+          hudNote.innerText = `音符: ${currentNote || '--'}`;
+          hudPeriod.innerText = `周期: ${periodMs} ms`;
+          hudDuty.innerText = `占空比: ${(targetDuty * 100).toFixed(0)}%`;
+        } else {
+          // 乐谱内部休止符 (REST)：保持播放任务状态，优雅显示休止，防止 DOM 结构收缩或折行晃动
+          toneDetail.innerText = `PWM0: 0 Hz (休止) | 占空比: 0%`;
+
+          if (noteBadge) {
+            noteBadge.innerText = (currentNote === 'REST' || !currentNote) ? '休止' : currentNote;
+            noteBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono min-w-[36px] text-center inline-flex items-center justify-center transition-colors duration-150';
+            noteBadge.classList.remove('hidden');
+          }
+
+          hudFreq.innerText = `频率: 0 Hz`;
+          hudNote.innerText = `音符: ${currentNote === 'REST' ? '休止' : '--'}`;
+          hudPeriod.innerText = `周期: -- ms`;
+          hudDuty.innerText = `占空比: 0%`;
+        }
       } else {
+        // 完全停止发声进入空闲就绪
+        lastActiveSongTitle = '';
         statusText.innerText = '空闲静音中 (Idle)';
-        statusText.className = 'text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400';
+        statusText.className = 'text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap min-w-[95px]';
         statusIcon.innerText = '⏸️';
         songTitle.innerText = '就绪状态';
         toneDetail.innerText = 'PWM0: 0 Hz | 占空比: 0%';
         radarRing.classList.add('hidden');
         statusGlow.className = 'relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm border border-slate-200 dark:border-slate-700 flex-shrink-0';
         
-        if (noteBadge) noteBadge.classList.add('hidden');
+        if (noteBadge) {
+          noteBadge.classList.add('hidden');
+        }
 
         hudFreq.innerText = `频率: 0 Hz`;
         hudNote.innerText = `音符: --`;
@@ -1774,8 +1804,8 @@
       }
 
       syncWebAudioNodes(targetFrequency, isPlayingAudio);
-      syncPianoKeyPlayback(currentNote, targetFrequency, isPlayingAudio, currentItemName);
-      updatePlayingCardState(isPlayingAudio, currentItemName);
+      syncPianoKeyPlayback(currentNote, targetFrequency, isPlayingAudio, currentItemName || lastActiveSongTitle);
+      updatePlayingCardState(isPlayingAudio, currentItemName || lastActiveSongTitle);
 
       if (data.system) {
         if (data.system.temperature !== undefined) document.getElementById('sys-temp').innerText = data.system.temperature + ' °C';
