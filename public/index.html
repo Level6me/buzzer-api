@@ -1271,10 +1271,6 @@
       let smoothFreq = 0;
       let smoothDuty = 0.1;
       let smoothAmp = 0; // 纵向振幅生成能量（从底部 0 垂直跃升至 1.0）
-      const NUM_BARS = 36; // 36 组自底部向上喷薄跃动的律动频谱柱
-      const barHeights = new Float32Array(NUM_BARS);
-      const barPeaks = new Float32Array(NUM_BARS);
-      const barPeakDelays = new Float32Array(NUM_BARS);
       const risingParticles = []; // 向上升腾的声学光效粒子
 
       function resize() {
@@ -1379,57 +1375,7 @@
         ] : [
           { f: f0, amp: 1.0, isBase: true }
         ];
-
-        // 1. 绘制从底部向上跃动的多频段律动柱 (Bottom-to-Top Equalizer Bars)
-        const barWidth = Math.max(3, Math.floor((w - 24) / NUM_BARS) - 3);
-        const barGap = (w - 24) / NUM_BARS;
-
-        for (let i = 0; i < NUM_BARS; i++) {
-          const barX = x0 + 12 + i * barGap;
-          const barFreq = xToFreq(12 + i * barGap + barWidth / 2, w);
-          let barEnergy = 0.02 + Math.sin(i * 0.4 + stepPhase * 1.5) * 0.012;
-
-          harmonics.forEach(hm => {
-            if (hm.f >= F_MIN && hm.f <= F_MAX) {
-              const df = Math.abs(barFreq - hm.f) / (hm.f * 0.045 + 8);
-              const peak = hm.amp / (1 + df * df * 6);
-              barEnergy += peak * 0.92;
-            }
-          });
-
-          barEnergy = Math.min(1.0, barEnergy) * smoothAmp;
-          barHeights[i] += (barEnergy - barHeights[i]) * 0.35;
-
-          if (barHeights[i] > barPeaks[i]) {
-            barPeaks[i] = barHeights[i];
-            barPeakDelays[i] = 10;
-          } else {
-            if (barPeakDelays[i] > 0) {
-              barPeakDelays[i]--;
-            } else {
-              barPeaks[i] = Math.max(0, barPeaks[i] - 0.025);
-            }
-          }
-
-          const barH = Math.max(2, barHeights[i] * availableHeight);
-          const barY = baseY - barH;
-
-          const barGrad = ctx.createLinearGradient(barX, baseY, barX, barY);
-          barGrad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
-          barGrad.addColorStop(0.7, 'rgba(14, 165, 233, 0.65)');
-          barGrad.addColorStop(1, 'rgba(56, 189, 248, 0.95)');
-
-          ctx.fillStyle = barGrad;
-          ctx.fillRect(barX, barY, barWidth, barH);
-
-          if (barPeaks[i] > 0.03) {
-            const peakY = baseY - (barPeaks[i] * availableHeight);
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(barX, peakY - 1.5, barWidth, 2);
-          }
-        }
-
-        // 2. 绘制平滑主频能量轮廓（纵向能量高度随 smoothAmp 从下往上升起）
+        // 绘制平滑主频能量轮廓（纵向能量高度随 smoothAmp 从下往上升起）
         const grad = ctx.createLinearGradient(x0, baseY, x0, baseY - availableHeight * smoothAmp);
         grad.addColorStop(0, 'rgba(15, 23, 42, 0.05)');
         grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.3)');
