@@ -273,7 +273,7 @@ async def token_check(request: Request, call_next):
     request.state.device = device
     request.state.token = token
 
-    # 静态文件、根路径与只读状态/SSE接口免 Token 验证
+    # 静态文件、根路径、设备管理控制台与只读状态/SSE接口免 Token 验证
     if (path == '/' or 
         path == '/health' or 
         path == '/api/status' or 
@@ -282,7 +282,7 @@ async def token_check(request: Request, call_next):
         path == '/api/notes' or 
         path == '/api/system' or 
         path == '/api/history' or 
-        (path == '/api/devices' and request.method == 'GET') or
+        path.startswith('/api/devices') or
         path.startswith('/static') or 
         path == '/favicon.ico'):
         return await call_next(request)
@@ -290,7 +290,7 @@ async def token_check(request: Request, call_next):
     # 检查是否启用了 Token 校验
     if is_token_required():
         if not device or not device.get('enabled', True):
-            return JSONResponse({'error': 'unauthorized', 'message': 'Invalid, missing or disabled API Token'}, status_code=401)
+            return JSONResponse({'error': 'unauthorized', 'message': 'API Token 无效、已禁用或未提供，请先在「多设备 Token」页面绑定当前设备'}, status_code=401)
 
     return await call_next(request)
 
