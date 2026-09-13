@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🔔 Pi Buzzer Console — 树莓派蜂鸣器控制台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfeff',
+              100: '#cffafe',
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Glassmorphism & custom styling */
+    .glass {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+    .dark .glass {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card {
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.12);
+    }
+    .dark .glass-card {
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    /* Piano styling */
+    .piano-wrapper {
+      position: relative;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .white-key {
+      background: linear-gradient(to bottom, #ffffff 0%, #f1f5f9 100%);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 -3px 0 #cbd5e1;
+      transition: all 0.05s ease;
+    }
+    .dark .white-key {
+      background: linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 100%);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), inset 0 -3px 0 #94a3b8;
+    }
+    .white-key:active, .white-key.active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 2px 0 rgba(0,0,0,0.2), inset 0 -1px 0 #cbd5e1;
+      background: #e0f2fe;
+    }
+    .dark .white-key:active, .dark .white-key.active {
+      background: #bae6fd;
+    }
+    .black-key {
+      background: linear-gradient(to bottom, #334155 0%, #0f172a 100%);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4), inset 0 -2px 0 #475569;
+      transition: all 0.05s ease;
+      z-index: 10;
+    }
+    .black-key:active, .black-key.active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 #334155;
+      background: #0284c7;
+    }
+
+    /* Soundwave pulsating */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .sound-pulse {
+      animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen font-sans transition-colors duration-200">
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="fixed top-5 right-5 z-50 transform -translate-y-12 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl glass border border-slate-200 dark:border-slate-700">
+    <span id="toast-icon" class="text-xl">🔔</span>
+    <span id="toast-msg" class="text-sm font-medium">提示信息</span>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 glass border-b border-slate-200/60 dark:border-slate-800/60">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <!-- Left: Logo & Pin info -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 text-xl font-bold">
+          🔔
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-bold tracking-tight text-slate-900 dark:text-white">Pi Buzzer Console</h1>
+            <span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-cyan-100 dark:bg-cyan-950/80 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60">v2.0</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-mono">GPIO 18 • 硬件 PWM0 • Pin 12</p>
+        </div>
+      </div>
+
+      <!-- Right: Status, Emergency Stop & Theme Toggle -->
+      <div class="flex items-center gap-3">
+        <div id="conn-badge" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>硬件在线</span>
+        </div>
+
+        <button onclick="triggerStop()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20 transition-all active:scale-95" title="立即切断当前播放">
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          <span>紧急静音</span>
+        </button>
+
+        <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" title="切换暗色/亮色主题">
+          <span id="theme-icon" class="text-base">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+    <!-- Top Live Audio Status & System Panel -->
+    <section class="glass glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+        
+        <!-- Status Indicator & Current Item -->
+        <div class="flex items-center gap-4">
+          <div id="status-glow" class="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl border border-slate-200 dark:border-slate-700 transition-all">
+            <span id="status-icon">⏸️</span>
+            <div id="radar-ring" class="hidden absolute inset-0 rounded-2xl bg-cyan-500/30 sound-pulse pointer-events-none"></div>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="status-text" class="text-sm font-bold text-slate-500 dark:text-slate-400">空闲静音中 (Idle)</span>
+            </div>
+            <h2 id="current-song-title" class="text-lg font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-sm">
+              就绪状态
+            </h2>
+            <p id="current-tone-detail" class="text-xs font-mono text-cyan-600 dark:text-cyan-400">PWM0: 0 Hz | 占空比: 0%</p>
+          </div>
+        </div>
+
+        <!-- Soundwave Canvas Visualizer -->
+        <div class="h-14 bg-slate-100/80 dark:bg-slate-900/60 rounded-xl p-1.5 flex flex-col justify-center border border-slate-200/50 dark:border-slate-800/50 overflow-hidden relative">
+          <canvas id="wave-canvas" class="w-full h-full block"></canvas>
+          <div class="absolute bottom-1 right-2 text-[10px] font-mono text-slate-400 dark:text-slate-500">REALTIME AUDIO OSCILLOSCOPE</div>
+        </div>
+
+        <!-- Hardware & System Metrics -->
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-200/40 dark:border-slate-800/40">
+            <span class="text-[10px] uppercase font-semibold text-slate-400">CPU 温度</span>
+            <div id="sys-temp" class="text-sm font-bold text-slate-800 dark:text-slate-200">-- °C</div>
+          </div>
+          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-200/40 dark:border-slate-800/40">
+            <span class="text-[10px] uppercase font-semibold text-slate-400">系统负载</span>
+            <div id="sys-load" class="text-sm font-bold text-slate-800 dark:text-slate-200">--</div>
+          </div>
+          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-200/40 dark:border-slate-800/40">
+            <span class="text-[10px] uppercase font-semibold text-slate-400">运行时长</span>
+            <div id="sys-uptime" class="text-sm font-bold text-slate-800 dark:text-slate-200">-- h</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-1 no-scrollbar">
+      <button onclick="switchTab('melodies')" id="tab-melodies" class="tab-btn active px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5 whitespace-nowrap">
+        <span>🎵</span> 预设旋律
+      </button>
+      <button onclick="switchTab('piano')" id="tab-piano" class="tab-btn px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+        <span>🎹</span> 钢琴键盘
+      </button>
+      <button onclick="switchTab('tone')" id="tab-tone" class="tab-btn px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+        <span>🎛️</span> 单音发生器
+      </button>
+      <button onclick="switchTab('composer')" id="tab-composer" class="tab-btn px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+        <span>🎼</span> 旋律编曲器
+      </button>
+      <button onclick="switchTab('api')" id="tab-api" class="tab-btn px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+        <span>🔌</span> API 文档 & Token
+      </button>
+      <button onclick="switchTab('history')" id="tab-history" class="tab-btn px-4 py-2 text-sm font-medium rounded-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+        <span>📋</span> 审计日志
+      </button>
+    </div>
+
+    <!-- ==================== TAB 1: 预设旋律库 ==================== -->
+    <div id="view-melodies" class="tab-view space-y-5">
+      <!-- Volume & Filter Controller -->
+      <div class="glass glass-card rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- Filter chips -->
+        <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
+          <button onclick="filterCategory('all')" class="cat-chip active px-3 py-1 text-xs font-semibold rounded-lg bg-cyan-500 text-white shadow-sm">全部</button>
+          <button onclick="filterCategory('提示音')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">提示音</button>
+          <button onclick="filterCategory('状态音')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">状态音</button>
+          <button onclick="filterCategory('经典游戏')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">经典游戏</button>
+          <button onclick="filterCategory('名曲旋律')" class="cat-chip px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300">名曲名段</button>
+        </div>
+
+        <!-- Global Volume Slider -->
+        <div class="flex items-center gap-3 w-full md:w-72">
+          <span class="text-xs font-medium text-slate-500 whitespace-nowrap">全局音量:</span>
+          <input type="range" id="global-volume" min="1" max="100" value="25" oninput="updateVolumeLabel(this.value)" class="w-full accent-cyan-500 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer">
+          <span id="global-volume-val" class="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400 w-10">25%</span>
+        </div>
+      </div>
+
+      <!-- Melodies Cards Grid -->
+      <div id="melodies-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Dynamically injected via JavaScript -->
+        <div class="col-span-full text-center py-12 text-slate-400">正在加载预设旋律库...</div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 2: 交互式钢琴键盘 ==================== -->
+    <div id="view-piano" class="tab-view hidden space-y-5">
+      <div class="glass glass-card rounded-2xl p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-200/60 dark:border-slate-800/60 pb-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span>🎹 硬件合成虚拟键盘 (Interactive Piano)</span>
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">双八度 (C4~B5)，点击琴键或在键盘上按 A~K 键实时触发树莓派 GPIO 18 硬件发声</p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500">按键发声时值:</span>
+            <select id="piano-duration" class="px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none">
+              <option value="0.15">短音 (0.15s)</option>
+              <option value="0.3" selected>中音 (0.3s)</option>
+              <option value="0.6">长音 (0.6s)</option>
+              <option value="1.0">全音 (1.0s)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Visual Piano Component -->
+        <div class="overflow-x-auto pb-4 pt-2">
+          <div class="piano-wrapper flex justify-center min-w-[680px] px-4">
+            
+            <!-- Octave 4 -->
+            <div class="relative flex">
+              <!-- C4 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="C4" data-key="A" onclick="playKeyNote('C4')">
+                <span class="text-xs font-bold text-slate-800">C4</span>
+                <span class="text-[10px] text-slate-400 font-mono">A</span>
+              </div>
+              <!-- C#4 -->
+              <div class="black-key absolute left-8 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="C#4" data-key="W" onclick="playKeyNote('C#4')">
+                <span class="text-[10px] font-bold text-white">C#4</span>
+                <span class="text-[9px] text-slate-400 font-mono">W</span>
+              </div>
+
+              <!-- D4 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="D4" data-key="S" onclick="playKeyNote('D4')">
+                <span class="text-xs font-bold text-slate-800">D4</span>
+                <span class="text-[10px] text-slate-400 font-mono">S</span>
+              </div>
+              <!-- D#4 -->
+              <div class="black-key absolute left-20 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="D#4" data-key="E" onclick="playKeyNote('D#4')">
+                <span class="text-[10px] font-bold text-white">D#4</span>
+                <span class="text-[9px] text-slate-400 font-mono">E</span>
+              </div>
+
+              <!-- E4 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="E4" data-key="D" onclick="playKeyNote('E4')">
+                <span class="text-xs font-bold text-slate-800">E4</span>
+                <span class="text-[10px] text-slate-400 font-mono">D</span>
+              </div>
+
+              <!-- F4 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="F4" data-key="F" onclick="playKeyNote('F4')">
+                <span class="text-xs font-bold text-slate-800">F4</span>
+                <span class="text-[10px] text-slate-400 font-mono">F</span>
+              </div>
+              <!-- F#4 -->
+              <div class="black-key absolute left-44 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="F#4" data-key="T" onclick="playKeyNote('F#4')">
+                <span class="text-[10px] font-bold text-white">F#4</span>
+                <span class="text-[9px] text-slate-400 font-mono">T</span>
+              </div>
+
+              <!-- G4 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="G4" data-key="G" onclick="playKeyNote('G4')">
+                <span class="text-xs font-bold text-slate-800">G4</span>
+                <span class="text-[10px] text-slate-400 font-mono">G</span>
+              </div>
+              <!-- G#4 -->
+              <div class="black-key absolute left-56 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="G#4" data-key="Y" onclick="playKeyNote('G#4')">
+                <span class="text-[10px] font-bold text-white">G#4</span>
+                <span class="text-[9px] text-slate-400 font-mono">Y</span>
+              </div>
+
+              <!-- A4 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="A4" data-key="H" onclick="playKeyNote('A4')">
+                <span class="text-xs font-bold text-slate-800">A4</span>
+                <span class="text-[10px] text-slate-400 font-mono">H</span>
+              </div>
+              <!-- A#4 -->
+              <div class="black-key absolute left-68 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" style="left:17rem;" data-note="A#4" data-key="U" onclick="playKeyNote('A#4')">
+                <span class="text-[10px] font-bold text-white">A#4</span>
+                <span class="text-[9px] text-slate-400 font-mono">U</span>
+              </div>
+
+              <!-- B4 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="B4" data-key="J" onclick="playKeyNote('B4')">
+                <span class="text-xs font-bold text-slate-800">B4</span>
+                <span class="text-[10px] text-slate-400 font-mono">J</span>
+              </div>
+            </div>
+
+            <!-- Octave 5 -->
+            <div class="relative flex">
+              <!-- C5 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="C5" data-key="K" onclick="playKeyNote('C5')">
+                <span class="text-xs font-bold text-slate-800">C5</span>
+                <span class="text-[10px] text-slate-400 font-mono">K</span>
+              </div>
+              <!-- C#5 -->
+              <div class="black-key absolute left-8 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="C#5" data-key="O" onclick="playKeyNote('C#5')">
+                <span class="text-[10px] font-bold text-white">C#5</span>
+                <span class="text-[9px] text-slate-400 font-mono">O</span>
+              </div>
+
+              <!-- D5 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="D5" data-key="L" onclick="playKeyNote('D5')">
+                <span class="text-xs font-bold text-slate-800">D5</span>
+                <span class="text-[10px] text-slate-400 font-mono">L</span>
+              </div>
+              <!-- D#5 -->
+              <div class="black-key absolute left-20 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="D#5" data-key="P" onclick="playKeyNote('D#5')">
+                <span class="text-[10px] font-bold text-white">D#5</span>
+                <span class="text-[9px] text-slate-400 font-mono">P</span>
+              </div>
+
+              <!-- E5 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="E5" onclick="playKeyNote('E5')">
+                <span class="text-xs font-bold text-slate-800">E5</span>
+              </div>
+
+              <!-- F5 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="F5" onclick="playKeyNote('F5')">
+                <span class="text-xs font-bold text-slate-800">F5</span>
+              </div>
+              <!-- F#5 -->
+              <div class="black-key absolute left-44 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="F#5" onclick="playKeyNote('F#5')">
+                <span class="text-[10px] font-bold text-white">F#5</span>
+              </div>
+
+              <!-- G5 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="G5" onclick="playKeyNote('G5')">
+                <span class="text-xs font-bold text-slate-800">G5</span>
+              </div>
+              <!-- G#5 -->
+              <div class="black-key absolute left-56 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" data-note="G#5" onclick="playKeyNote('G#5')">
+                <span class="text-[10px] font-bold text-white">G#5</span>
+              </div>
+
+              <!-- A5 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="A5" onclick="playKeyNote('A5')">
+                <span class="text-xs font-bold text-slate-800">A5</span>
+              </div>
+              <!-- A#5 -->
+              <div class="black-key absolute left-68 w-8 h-28 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer" style="left:17rem;" data-note="A#5" onclick="playKeyNote('A#5')">
+                <span class="text-[10px] font-bold text-white">A#5</span>
+              </div>
+
+              <!-- B5 -->
+              <div class="white-key relative w-12 h-44 rounded-b-lg flex flex-col justify-end items-center pb-2 cursor-pointer border border-slate-300 dark:border-slate-600" data-note="B5" onclick="playKeyNote('B5')">
+                <span class="text-xs font-bold text-slate-800">B5</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-slate-100/60 dark:bg-slate-900/40 rounded-xl text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
+          <span>💡 提示：在当前页面可直接通过电脑物理键盘 A, W, S, E, D, F, T, G, Y, H, U, J, K, O, L 快速弹奏！</span>
+          <span id="piano-last-note" class="font-mono text-cyan-600 dark:text-cyan-400 font-semibold">上次触发: 无</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: 单音频发生器 ==================== -->
+    <div id="view-tone" class="tab-view hidden space-y-5">
+      <div class="glass glass-card rounded-2xl p-6">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+          <span>🎛️ 频率信号合成器 (Tone Synthesizer)</span>
+        </h3>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Left Controls -->
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">目标输出频率 (Frequency)</label>
+                <div class="flex items-center gap-1">
+                  <input type="number" id="tone-freq-num" min="20" max="5000" value="1000" oninput="syncToneFreq(this.value)" class="w-24 px-2 py-0.5 text-right font-mono font-bold text-sm rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-cyan-600 dark:text-cyan-400">
+                  <span class="text-xs font-mono text-slate-400">Hz</span>
+                </div>
+              </div>
+              <input type="range" id="tone-freq-range" min="50" max="4000" step="1" value="1000" oninput="syncToneFreq(this.value)" class="w-full accent-cyan-500 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer">
+              
+              <!-- Quick Frequency Presets -->
+              <div class="flex flex-wrap gap-2 mt-2.5">
+                <button onclick="syncToneFreq(262)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-200/80 dark:bg-slate-800 hover:bg-cyan-500 hover:text-white transition-colors">262Hz (C4)</button>
+                <button onclick="syncToneFreq(440)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-200/80 dark:bg-slate-800 hover:bg-cyan-500 hover:text-white transition-colors">440Hz (A4)</button>
+                <button onclick="syncToneFreq(523)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-200/80 dark:bg-slate-800 hover:bg-cyan-500 hover:text-white transition-colors">523Hz (C5)</button>
+                <button onclick="syncToneFreq(1000)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-200/80 dark:bg-slate-800 hover:bg-cyan-500 hover:text-white transition-colors">1000Hz (单哔)</button>
+                <button onclick="syncToneFreq(2000)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-200/80 dark:bg-slate-800 hover:bg-cyan-500 hover:text-white transition-colors">2000Hz (高频)</button>
+                <button onclick="syncToneFreq(3500)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-200/80 dark:bg-slate-800 hover:bg-cyan-500 hover:text-white transition-colors">3500Hz (警报)</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">发声时长 (Duration)</label>
+                <span id="tone-dur-val" class="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400">0.50 s</span>
+              </div>
+              <input type="range" id="tone-dur-range" min="0.05" max="5.0" step="0.05" value="0.5" oninput="document.getElementById('tone-dur-val').innerText = parseFloat(this.value).toFixed(2) + ' s'" class="w-full accent-cyan-500 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer">
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">音量大小 (Volume)</label>
+                <span id="tone-vol-val" class="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400">25 %</span>
+              </div>
+              <input type="range" id="tone-vol-range" min="1" max="100" value="25" oninput="document.getElementById('tone-vol-val').innerText = this.value + ' %'" class="w-full accent-cyan-500 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer">
+            </div>
+
+            <div class="pt-2 flex gap-3">
+              <button onclick="playCustomTone()" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 active:scale-98 transition-all flex items-center justify-center gap-2">
+                <span>▶️</span> 立即发声
+              </button>
+              <button onclick="triggerStop()" class="py-3 px-5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm transition-all">
+                停止
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Info / Guide Card -->
+          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-5 border border-slate-200/50 dark:border-slate-800/50 space-y-3">
+            <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <span>📌 硬件 PWM 声学原理说明</span>
+            </h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              无源蜂鸣器需要交变方波驱动。本接口通过树莓派原生 SoC <b>PWM0 通道</b>精准生成周期信号，占空比 (Duty Cycle) 对应声音能量：
+            </p>
+            <ul class="text-xs text-slate-500 dark:text-slate-400 space-y-1.5 list-disc list-inside">
+              <li><b class="text-slate-700 dark:text-slate-300">1% ~ 5%</b>: 微弱音量，声音纯净无杂音，适合夜间或办公环境。</li>
+              <li><b class="text-slate-700 dark:text-slate-300">10% ~ 25%</b>: 常用标准音量，清晰悦耳。</li>
+              <li><b class="text-slate-700 dark:text-slate-300">30% 以上</b>: 达到最大响度，但易引起簧片剧烈共振产生破音。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 4: 旋律编曲器 ==================== -->
+    <div id="view-composer" class="tab-view hidden space-y-5">
+      <div class="glass glass-card rounded-2xl p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span>🎼 自定义音符序列编曲器</span>
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">编写由 <code>[音名/频率, 时长秒]</code> 组成的序列即可随心编排专属铃声</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500">载入示例模板:</span>
+            <select id="composer-template-select" onchange="loadComposerTemplate(this.value)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none">
+              <option value="">-- 选择模板 --</option>
+              <option value="scale">七音阶琶音 (Do-Re-Mi...)</option>
+              <option value="mario">超级马里奥进管道</option>
+              <option value="laser">激光科幻音效</option>
+              <option value="siren">警车呼啸音效</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <textarea id="composer-json" rows="8" class="w-full font-mono text-xs p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none leading-relaxed" placeholder='[
+  ["C5", 0.15],
+  ["G4", 0.15],
+  ["C5", 0.15],
+  ["G4", 0.3]
+]'></textarea>
+          </div>
+
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div id="composer-feedback" class="text-xs text-slate-500 font-mono">准备就绪，共 4 个音符，预估时长 0.75 秒</div>
+
+            <div class="flex items-center gap-3">
+              <button onclick="playCustomMelody()" class="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs shadow-md shadow-cyan-500/20 active:scale-98 transition-all flex items-center gap-2">
+                <span>▶️</span> 播放编曲
+              </button>
+              <button onclick="triggerStop()" class="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all">
+                停止
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 5: API 文档 & Token ==================== -->
+    <div id="view-api" class="tab-view hidden space-y-5">
+      <div class="glass glass-card rounded-2xl p-6 space-y-6">
+        
+        <!-- Token Settings -->
+        <div class="border-b border-slate-200/60 dark:border-slate-800/60 pb-6">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span>🔑 API 访问令牌 (Token 认证管理)</span>
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            如果服务端在环境变量中配置了 <code>BUZZER_API_TOKEN</code>，则发声与控制接口必须附带该 Token。
+          </p>
+          <div class="flex flex-col sm:flex-row items-center gap-3 max-w-lg">
+            <input type="password" id="api-token-input" placeholder="输入您的 API Token (保存在浏览器本地)" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none font-mono">
+            <button onclick="saveApiToken()" class="w-full sm:w-auto px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold whitespace-nowrap shadow-sm">
+              保存 Token
+            </button>
+            <button onclick="clearApiToken()" class="w-full sm:w-auto px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold whitespace-nowrap">
+              清除
+            </button>
+          </div>
+        </div>
+
+        <!-- Code Snippets -->
+        <div class="space-y-4">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <span>💻 快速调用示例 (Curl & Python)</span>
+          </h3>
+
+          <!-- Curl tone -->
+          <div class="bg-slate-100/80 dark:bg-slate-900/80 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800/60">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">1. 发送单音 (Tone)</span>
+              <button onclick="copyCode('code-curl-tone')" class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">复制命令</button>
+            </div>
+            <pre id="code-curl-tone" class="text-xs font-mono text-slate-700 dark:text-slate-300 overflow-x-auto p-2 bg-white/50 dark:bg-black/30 rounded-lg">curl -X POST http://127.0.0.1:8001/api/play/tone   -H "Content-Type: application/json"   -H "X-API-Token: YOUR_TOKEN"   -d '{"frequency": 1000, "duration": 0.2, "volume": 25}'</pre>
+          </div>
+
+          <!-- Curl melody -->
+          <div class="bg-slate-100/80 dark:bg-slate-900/80 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800/60">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">2. 播放预设旋律 (Melody)</span>
+              <button onclick="copyCode('code-curl-melody')" class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">复制命令</button>
+            </div>
+            <pre id="code-curl-melody" class="text-xs font-mono text-slate-700 dark:text-slate-300 overflow-x-auto p-2 bg-white/50 dark:bg-black/30 rounded-lg">curl -X POST http://127.0.0.1:8001/api/play/melody   -H "Content-Type: application/json"   -H "X-API-Token: YOUR_TOKEN"   -d '{"name": "success", "volume": 30}'</pre>
+          </div>
+
+          <!-- Curl stop -->
+          <div class="bg-slate-100/80 dark:bg-slate-900/80 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800/60">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">3. 紧急静音 / 停止 (Stop)</span>
+              <button onclick="copyCode('code-curl-stop')" class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">复制命令</button>
+            </div>
+            <pre id="code-curl-stop" class="text-xs font-mono text-slate-700 dark:text-slate-300 overflow-x-auto p-2 bg-white/50 dark:bg-black/30 rounded-lg">curl -X POST http://127.0.0.1:8001/api/stop   -H "X-API-Token: YOUR_TOKEN"</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== TAB 6: 审计日志 ==================== -->
+    <div id="view-history" class="tab-view hidden space-y-5">
+      <div class="glass glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <span>📋 最近播放历史与审计日志</span>
+          </h3>
+          <button onclick="fetchHistory()" class="px-3 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">刷新记录</button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase">
+                <th class="py-2.5 px-3">时间</th>
+                <th class="py-2.5 px-3">动作类型</th>
+                <th class="py-2.5 px-3">详情内容</th>
+                <th class="py-2.5 px-3">持续时长</th>
+                <th class="py-2.5 px-3">音量</th>
+                <th class="py-2.5 px-3">触发客户端</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono text-slate-600 dark:text-slate-300">
+              <tr>
+                <td colspan="6" class="py-6 text-center text-slate-400">暂无播放记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-12 py-6 border-t border-slate-200/60 dark:border-slate-800/60 text-center text-xs text-slate-400">
+    Raspberry Pi Hardware PWM Buzzer Controller • GPIO 18 (Pin 12) • Powered by FastAPI & Linux sysfs
+  </footer>
+
+  <!-- Main Controller Script -->
+  <script>
+    let allMelodies = [];
+    let currentCategory = 'all';
+    let isPlayingAudio = false;
+    let pollTimer = null;
+    let canvasAnimId = null;
+
+    // Toast Manager
+    function showToast(msg, icon = '🔔', duration = 2500) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      document.getElementById('toast-icon').innerText = icon;
+      toast.classList.remove('-translate-y-12', 'opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-12', 'opacity-0', 'pointer-events-none');
+      }, duration);
+    }
+
+    // Theme Toggle
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('buzzer_theme', isDark ? 'dark' : 'light');
+      document.getElementById('theme-icon').innerText = isDark ? '🌙' : '☀️';
+    }
+    if (localStorage.getItem('buzzer_theme') === 'light') {
+      document.documentElement.classList.remove('dark');
+      document.getElementById('theme-icon').innerText = '☀️';
+    }
+
+    // Tab Switcher
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active', 'border-cyan-500', 'text-cyan-600', 'dark:text-cyan-400');
+        btn.classList.add('border-transparent', 'text-slate-500');
+      });
+      document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+
+      const activeBtn = document.getElementById('tab-' + tabId);
+      if (activeBtn) {
+        activeBtn.classList.add('active', 'border-cyan-500', 'text-cyan-600', 'dark:text-cyan-400');
+        activeBtn.classList.remove('border-transparent', 'text-slate-500');
+      }
+      const activeView = document.getElementById('view-' + tabId);
+      if (activeView) activeView.classList.remove('hidden');
+
+      if (tabId === 'history') fetchHistory();
+    }
+
+    // Token Helper
+    function getAuthHeaders() {
+      const token = localStorage.getItem('buzzer_api_token') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['X-API-Token'] = token;
+      return headers;
+    }
+
+    function saveApiToken() {
+      const val = document.getElementById('api-token-input').value.trim();
+      localStorage.setItem('buzzer_api_token', val);
+      showToast('API Token 已保存在本地', '🔑');
+    }
+
+    function clearApiToken() {
+      localStorage.removeItem('buzzer_api_token');
+      document.getElementById('api-token-input').value = '';
+      showToast('API Token 已清除', '🗑️');
+    }
+
+    // Global volume
+    function updateVolumeLabel(val) {
+      document.getElementById('global-volume-val').innerText = val + '%';
+    }
+
+    // Stop Handler
+    async function triggerStop() {
+      try {
+        const res = await fetch('/api/stop', { method: 'POST', headers: getAuthHeaders() });
+        if (res.ok) {
+          showToast('已停止播放并静音', '🛑');
+          fetchStatus();
+        } else {
+          showToast('停止请求失败: ' + res.status, '⚠️');
+        }
+      } catch (e) {
+        showToast('网络错误: ' + e.message, '❌');
+      }
+    }
+
+    // Fetch Status & Metrics
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        isPlayingAudio = Boolean(data.is_playing);
+        const statusText = document.getElementById('status-text');
+        const statusIcon = document.getElementById('status-icon');
+        const songTitle = document.getElementById('current-song-title');
+        const toneDetail = document.getElementById('current-tone-detail');
+        const radarRing = document.getElementById('radar-ring');
+        const statusGlow = document.getElementById('status-glow');
+
+        if (isPlayingAudio) {
+          statusText.innerText = '正在发声中 (Playing)';
+          statusText.className = 'text-sm font-bold text-cyan-600 dark:text-cyan-400';
+          statusIcon.innerText = '🎵';
+          songTitle.innerText = data.current_item || '硬件音频输出中';
+          toneDetail.innerText = `PWM0: ${data.frequency || 0} Hz | 占空比: ${(data.duty * 100).toFixed(1)}%`;
+          radarRing.classList.remove('hidden');
+          statusGlow.className = 'relative flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan-100 dark:bg-cyan-950/80 text-2xl border border-cyan-400 shadow-lg shadow-cyan-500/30';
+        } else {
+          statusText.innerText = '空闲静音中 (Idle)';
+          statusText.className = 'text-sm font-bold text-slate-500 dark:text-slate-400';
+          statusIcon.innerText = '⏸️';
+          songTitle.innerText = '就绪状态';
+          toneDetail.innerText = 'PWM0: 0 Hz | 占空比: 0%';
+          radarRing.classList.add('hidden');
+          statusGlow.className = 'relative flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl border border-slate-200 dark:border-slate-700';
+        }
+
+        // System metrics
+        if (data.system) {
+          document.getElementById('sys-temp').innerText = (data.system.temperature || '--') + ' °C';
+          document.getElementById('sys-load').innerText = (data.system.load_avg ? data.system.load_avg[0] : '--');
+          document.getElementById('sys-uptime').innerText = (data.system.uptime_hours || '--') + ' h';
+        }
+
+      } catch (e) {
+        console.error('Status poll error', e);
+      }
+    }
+
+    // Audio Oscilloscope Waveform Animation
+    function initWaveform() {
+      const canvas = document.getElementById('wave-canvas');
+      const ctx = canvas.getContext('2d');
+      let step = 0;
+
+      function resize() {
+        canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+        canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      function draw() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.lineWidth = 2.5 * window.devicePixelRatio;
+        ctx.strokeStyle = isPlayingAudio ? '#06b6d4' : '#64748b';
+        ctx.beginPath();
+
+        const midY = h / 2;
+        const amp = isPlayingAudio ? (h * 0.35) : 0;
+        const freq = isPlayingAudio ? 0.08 : 0.02;
+
+        for (let x = 0; x < w; x += 4) {
+          // Square/Sine blend for buzzer style
+          const rawSin = Math.sin((x * freq) + step);
+          const y = midY + (amp * (rawSin > 0 ? 0.8 : -0.8));
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        step += isPlayingAudio ? 0.25 : 0.02;
+        canvasAnimId = requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // Melodies Loader
+    async function loadMelodies() {
+      try {
+        const res = await fetch('/api/melodies');
+        const data = await res.json();
+        allMelodies = data.melodies || [];
+        renderMelodies();
+      } catch (e) {
+        document.getElementById('melodies-grid').innerHTML = '<div class="col-span-full text-center text-rose-500">无法加载预设库: ' + e.message + '</div>';
+      }
+    }
+
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-chip').forEach(c => {
+        c.classList.remove('active', 'bg-cyan-500', 'text-white');
+        c.classList.add('bg-slate-200', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-300');
+      });
+      event.target.classList.add('active', 'bg-cyan-500', 'text-white');
+      event.target.classList.remove('bg-slate-200', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-300');
+      renderMelodies();
+    }
+
+    function renderMelodies() {
+      const container = document.getElementById('melodies-grid');
+      const filtered = currentCategory === 'all' 
+        ? allMelodies 
+        : allMelodies.filter(m => m.category === currentCategory);
+
+      if (!filtered.length) {
+        container.innerHTML = '<div class="col-span-full text-center py-10 text-slate-400">该分类下暂无预设旋律</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(m => `
+        <div class="glass glass-card rounded-2xl p-4 flex flex-col justify-between border border-slate-200/70 dark:border-slate-800/70 hover:border-cyan-500/50 transition-all group">
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-2xl p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80">${m.icon}</span>
+                <div>
+                  <h4 class="font-bold text-slate-900 dark:text-white text-sm group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">${m.title}</h4>
+                  <span class="text-[10px] font-semibold text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">${m.category}</span>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">${m.desc}</p>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span class="font-mono text-[11px] text-slate-400">${m.note_count} 音符 • 约 ${m.duration}s</span>
+            <button onclick="playPresetMelody('${m.id}')" class="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-600 active:scale-95 text-white font-semibold text-xs shadow-md shadow-cyan-500/20 transition-all flex items-center gap-1">
+              <span>▶</span> 播放
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function playPresetMelody(id) {
+      const vol = parseInt(document.getElementById('global-volume').value) || 25;
+      showToast(`正在播放: ${id}...`, '🎵');
+      try {
+        const res = await fetch('/api/play/melody', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name: id, volume: vol })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast('播放失败: ' + (data.message || data.error || res.status), '❌');
+        } else {
+          fetchStatus();
+        }
+      } catch (e) {
+        showToast('请求异常: ' + e.message, '❌');
+      }
+    }
+
+    // Piano key player
+    async function playKeyNote(note) {
+      const dur = parseFloat(document.getElementById('piano-duration').value) || 0.3;
+      const vol = parseInt(document.getElementById('global-volume').value) || 25;
+      
+      const keyEl = document.querySelector(`[data-note="${note}"]`);
+      if (keyEl) {
+        keyEl.classList.add('active');
+        setTimeout(() => keyEl.classList.remove('active'), 180);
+      }
+      document.getElementById('piano-last-note').innerText = `触发音符: ${note} (${dur}s)`;
+
+      try {
+        await fetch('/api/play/melody', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            notes: [[note, dur]],
+            volume: vol
+          })
+        });
+        fetchStatus();
+      } catch (e) {}
+    }
+
+    // Tone synthesizer
+    function syncToneFreq(val) {
+      val = Math.max(20, Math.min(5000, parseInt(val) || 1000));
+      document.getElementById('tone-freq-num').value = val;
+      document.getElementById('tone-freq-range').value = Math.min(4000, val);
+    }
+
+    async function playCustomTone() {
+      const freq = parseFloat(document.getElementById('tone-freq-num').value) || 1000;
+      const dur = parseFloat(document.getElementById('tone-dur-range').value) || 0.5;
+      const vol = parseInt(document.getElementById('tone-vol-range').value) || 25;
+
+      showToast(`播放单音: ${freq} Hz (${dur}s)`, '🔊');
+      try {
+        const res = await fetch('/api/play/tone', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ frequency: freq, duration: dur, volume: vol })
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          showToast('播放错误: ' + (d.message || d.error), '❌');
+        } else {
+          fetchStatus();
+        }
+      } catch (e) {
+        showToast('请求异常: ' + e.message, '❌');
+      }
+    }
+
+    // Composer
+    const COMPOSER_TEMPLATES = {
+      scale: [["C4",0.2],["D4",0.2],["E4",0.2],["F4",0.2],["G4",0.2],["A4",0.2],["B4",0.2],["C5",0.4]],
+      mario: [["E5",0.12],["E5",0.12],["REST",0.12],["E5",0.12],["REST",0.12],["C5",0.12],["E5",0.2],["G5",0.25],["REST",0.2],["G4",0.25]],
+      laser: [["C6",0.04],["A5",0.04],["F5",0.04],["D5",0.04],["C5",0.05],["G4",0.06],["C4",0.1]],
+      siren: [["A5",0.12],["A4",0.12],["A5",0.12],["A4",0.12],["A5",0.12],["A4",0.12],["A5",0.12],["A4",0.2]]
+    };
+
+    function loadComposerTemplate(tpl) {
+      if (tpl && COMPOSER_TEMPLATES[tpl]) {
+        document.getElementById('composer-json').value = JSON.stringify(COMPOSER_TEMPLATES[tpl], null, 2);
+        updateComposerFeedback();
+      }
+    }
+
+    function updateComposerFeedback() {
+      const fb = document.getElementById('composer-feedback');
+      try {
+        const raw = document.getElementById('composer-json').value.trim();
+        if (!raw) {
+          fb.innerText = '请输入音符序列 JSON 数组';
+          fb.className = 'text-xs text-slate-500 font-mono';
+          return null;
+        }
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error('根对象必须是数组');
+        const dur = parsed.reduce((acc, cur) => acc + (parseFloat(cur[1]) || 0), 0);
+        fb.innerText = `有效编曲：共 ${parsed.length} 个音符，预估总时长 ${dur.toFixed(2)} 秒`;
+        fb.className = 'text-xs text-emerald-600 dark:text-emerald-400 font-mono font-semibold';
+        return parsed;
+      } catch (e) {
+        fb.innerText = '语法错误: ' + e.message;
+        fb.className = 'text-xs text-rose-500 font-mono font-semibold';
+        return null;
+      }
+    }
+    document.getElementById('composer-json').addEventListener('input', updateComposerFeedback);
+
+    async function playCustomMelody() {
+      const notes = updateComposerFeedback();
+      if (!notes) {
+        showToast('请修正音符 JSON 语法错误后再试', '⚠️');
+        return;
+      }
+      const vol = parseInt(document.getElementById('global-volume').value) || 25;
+      showToast('正在播放自定义编曲...', '🎼');
+      try {
+        const res = await fetch('/api/play/melody', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ notes: notes, volume: vol })
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          showToast('播放错误: ' + (d.message || d.error), '❌');
+        } else {
+          fetchStatus();
+        }
+      } catch (e) {
+        showToast('请求错误: ' + e.message, '❌');
+      }
+    }
+
+    // History Log
+    async function fetchHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        const tbody = document.getElementById('history-tbody');
+        if (!data.history || !data.history.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">暂无播放记录</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.history.map(item => `
+          <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+            <td class="py-2.5 px-3 text-slate-400">${item.time}</td>
+            <td class="py-2.5 px-3 font-semibold text-cyan-600 dark:text-cyan-400">${item.type}</td>
+            <td class="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-bold">${item.detail}</td>
+            <td class="py-2.5 px-3">${item.duration ? item.duration + 's' : '--'}</td>
+            <td class="py-2.5 px-3">${item.volume !== null ? item.volume + '%' : '--'}</td>
+            <td class="py-2.5 px-3 text-slate-400">${item.client}</td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    // Keyboard bindings for Piano
+    const KEY_MAP = {
+      'KeyA': 'C4', 'KeyW': 'C#4', 'KeyS': 'D4', 'KeyE': 'D#4', 'KeyD': 'E4',
+      'KeyF': 'F4', 'KeyT': 'F#4', 'KeyG': 'G4', 'KeyY': 'G#4', 'KeyH': 'A4',
+      'KeyU': 'A#4', 'KeyJ': 'B4', 'KeyK': 'C5', 'KeyO': 'C#5', 'KeyL': 'D5',
+      'KeyP': 'D#5'
+    };
+
+    window.addEventListener('keydown', (e) => {
+      // Don't trigger if user is typing in inputs/textareas
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      if (KEY_MAP[e.code]) {
+        playKeyNote(KEY_MAP[e.code]);
+      }
+    });
+
+    function copyCode(id) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('代码已复制到剪贴板', '📋');
+      });
+    }
+
+    // Init on load
+    window.addEventListener('DOMContentLoaded', () => {
+      initWaveform();
+      loadMelodies();
+      fetchStatus();
+      updateComposerFeedback();
+
+      const savedToken = localStorage.getItem('buzzer_api_token');
+      if (savedToken) document.getElementById('api-token-input').value = savedToken;
+
+      pollTimer = setInterval(fetchStatus, 1500);
+    });
+  </script>
+</body>
+</html>
