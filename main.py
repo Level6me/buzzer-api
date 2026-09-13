@@ -1,11 +1,12 @@
 import asyncio
 import collections
+import json
 import os
 import time
 from typing import Optional, List, Any, Union
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -17,6 +18,28 @@ buzzer = Buzzer()
 play_lock = asyncio.Lock()
 API_TOKEN = os.environ.get('BUZZER_API_TOKEN', '')
 MAX_DUTY = 0.3  # volume=100 时对应的占空比（避免破音）
+
+# SSE 广播订阅管理
+main_event_loop: Optional[asyncio.AbstractEventLoop] = None
+sse_subscribers: set = set()
+
+def on_buzzer_status_change(status_dict):
+    global main_event_loop
+    if main_event_loop and not main_event_loop.is_closed():
+        for q in list(sse_subscribers):
+            try:
+                main_event_loop.call_soon_threadsafe(
+                    lambda queue=q, data=status_dict: queue.put_nowait(data) if not queue.full() else None
+                )
+            except Exception:
+                pass
+
+buzzer.add_listener(on_buzzer_status_change)
+
+@app.on_event('startup')
+async def on_startup():
+    global main_event_loop
+    main_event_loop = asyncio.get_running_loop()
 
 # 内存日志队列（保留最近 50 条播放记录）
 history_log = collections.deque(maxlen=50)
@@ -116,11 +139,12 @@ class MelodyRequest(BaseModel):
 
 @app.middleware('http')
 async def token_check(request: Request, call_next):
-    # 静态文件、根路径与只读状态接口免 Token 验证
+    # 静态文件、根路径与只读状态/SSE接口免 Token 验证
     path = request.url.path
     if (path == '/' or 
         path == '/health' or 
         path == '/api/status' or 
+        path == '/api/events' or 
         path == '/api/melodies' or 
         path == '/api/notes' or 
         path == '/api/system' or 
@@ -163,6 +187,53 @@ async def status():
     st['token_required'] = bool(API_TOKEN)
     st['system'] = get_system_metrics()
     return st
+
+
+@app.get('/api/events')
+async def events_stream(request: Request):
+    """Server-Sent Events (SSE) 实时毫秒级推送蜂鸣器频率/波形/音符及系统指标"""
+    q = asyncio.Queue(maxsize=50)
+    sse_subscribers.add(q)
+
+    # 初次连接时推送一次当前完整状态
+    init_state = buzzer.get_status()
+    init_state['token_required'] = bool(API_TOKEN)
+    init_state['system'] = get_system_metrics()
+    await q.put(init_state)
+
+    async def event_generator():
+        last_sys_heartbeat = time.time()
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    data = await asyncio.wait_for(q.get(), timeout=1.0)
+                    yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    now = time.time()
+                    if now - last_sys_heartbeat >= 2.5:
+                        last_sys_heartbeat = now
+                        heartbeat = buzzer.get_status()
+                        heartbeat['token_required'] = bool(API_TOKEN)
+                        heartbeat['system'] = get_system_metrics()
+                        yield f"data: {json.dumps(heartbeat, ensure_ascii=False)}\n\n"
+                    else:
+                        yield f": keepalive\n\n"
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+        finally:
+            sse_subscribers.discard(q)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @app.get('/api/system')

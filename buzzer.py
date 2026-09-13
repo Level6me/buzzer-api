@@ -27,6 +27,21 @@ NOTES = {
     'REST': 0, 'P': 0, '0': 0, '': 0,
 }
 
+def freq_to_note_name(freq):
+    if not freq or freq <= 0:
+        return 'REST'
+    best_note = None
+    min_diff = float('inf')
+    for n, f in NOTES.items():
+        if f > 0:
+            diff = abs(f - freq)
+            if diff < min_diff:
+                min_diff = diff
+                best_note = n
+    if min_diff <= 10:
+        return best_note
+    return f"{int(freq)}Hz"
+
 class Buzzer:
     def __init__(self, duty_default=0.1):
         self.duty_default = duty_default
@@ -35,8 +50,26 @@ class Buzzer:
         self.is_playing = False
         self.current_frequency = 0
         self.current_duty = 0.0
+        self.current_note = None
         self.current_item = None
+        self._listeners = []
         self._ensure()
+
+    def add_listener(self, callback):
+        if callback not in self._listeners:
+            self._listeners.append(callback)
+
+    def remove_listener(self, callback):
+        if callback in self._listeners:
+            self._listeners.remove(callback)
+
+    def _notify(self):
+        st = self.get_status()
+        for cb in list(self._listeners):
+            try:
+                cb(st)
+            except Exception:
+                pass
 
     def _ensure(self):
         if not os.path.exists(PWM0):
@@ -78,7 +111,9 @@ class Buzzer:
         self.is_playing = True
         self.current_frequency = frequency
         self.current_duty = duty
-        self.current_item = f"{frequency}Hz"
+        self.current_note = freq_to_note_name(frequency)
+        self.current_item = f"{int(frequency)}Hz ({self.current_note})"
+        self._notify()
         try:
             self._set_tone(frequency, duty)
             elapsed = 0.0
@@ -105,10 +140,12 @@ class Buzzer:
                     note, duration = item[0], item[1]
                     freq = note if isinstance(note, (int, float)) else NOTES.get(str(note).strip().upper(), 440)
                     self.current_frequency = freq
+                    self.current_note = str(note).strip().upper() if not isinstance(note, (int, float)) else freq_to_note_name(freq)
                     if freq <= 0 or str(note).upper() in ('REST', 'P', '0'):
                         self._disable_pwm()
                     else:
                         self._set_tone(freq, duty)
+                    self._notify()
                     
                     elapsed = 0.0
                     step = 0.02
@@ -119,6 +156,9 @@ class Buzzer:
                     
                     # 音符间微小静音断音，避免相同音连成一体
                     self._disable_pwm()
+                    self.current_frequency = 0
+                    self.current_note = 'REST'
+                    self._notify()
                     time.sleep(0.015)
         finally:
             self.stop()
@@ -126,10 +166,14 @@ class Buzzer:
     def stop(self):
         self._stop_flag = True
         self._disable_pwm()
+        was_playing = self.is_playing
         self.is_playing = False
         self.current_frequency = 0
         self.current_duty = 0.0
+        self.current_note = None
         self.current_item = None
+        if was_playing:
+            self._notify()
 
     def get_status(self):
         return {
@@ -137,6 +181,7 @@ class Buzzer:
             'pwm_channel': 'pwm0',
             'is_playing': self.is_playing,
             'frequency': self.current_frequency,
+            'note': self.current_note,
             'duty': round(self.current_duty, 4),
             'current_item': self.current_item,
         }

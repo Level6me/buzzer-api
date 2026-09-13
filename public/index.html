@@ -139,48 +139,86 @@
   <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
     <!-- Top Live Audio Status & System Panel -->
-    <section class="glass glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+    <section class="glass glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden space-y-4">
+      <!-- Row 1: Status & Hardware Metrics -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         
-        <!-- Status Indicator & Current Item -->
+        <!-- Left: Status Indicator & Current Item -->
         <div class="flex items-center gap-4">
-          <div id="status-glow" class="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl border border-slate-200 dark:border-slate-700 transition-all">
+          <div id="status-glow" class="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl border border-slate-200 dark:border-slate-700 transition-all flex-shrink-0">
             <span id="status-icon">⏸️</span>
             <div id="radar-ring" class="hidden absolute inset-0 rounded-2xl bg-cyan-500/30 sound-pulse pointer-events-none"></div>
           </div>
           <div>
             <div class="flex items-center gap-2">
               <span id="status-text" class="text-sm font-bold text-slate-500 dark:text-slate-400">空闲静音中 (Idle)</span>
+              <span id="live-note-badge" class="hidden text-xs px-2 py-0.5 rounded-full font-bold bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-mono">--</span>
             </div>
-            <h2 id="current-song-title" class="text-lg font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-sm">
+            <h2 id="current-song-title" class="text-lg font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-md">
               就绪状态
             </h2>
             <p id="current-tone-detail" class="text-xs font-mono text-cyan-600 dark:text-cyan-400">PWM0: 0 Hz | 占空比: 0%</p>
           </div>
         </div>
 
-        <!-- Soundwave Canvas Visualizer -->
-        <div class="h-14 bg-slate-100/80 dark:bg-slate-900/60 rounded-xl p-1.5 flex flex-col justify-center border border-slate-200/50 dark:border-slate-800/50 overflow-hidden relative">
-          <canvas id="wave-canvas" class="w-full h-full block"></canvas>
-          <div class="absolute bottom-1 right-2 text-[10px] font-mono text-slate-400 dark:text-slate-500">REALTIME AUDIO OSCILLOSCOPE</div>
-        </div>
-
-        <!-- Hardware & System Metrics -->
-        <div class="grid grid-cols-3 gap-3 text-center">
-          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-200/40 dark:border-slate-800/40">
+        <!-- Right: Hardware & System Metrics -->
+        <div class="grid grid-cols-3 gap-3 text-center sm:w-auto w-full">
+          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[90px]">
             <span class="text-[10px] uppercase font-semibold text-slate-400">CPU 温度</span>
             <div id="sys-temp" class="text-sm font-bold text-slate-800 dark:text-slate-200">-- °C</div>
           </div>
-          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-200/40 dark:border-slate-800/40">
+          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[90px]">
             <span class="text-[10px] uppercase font-semibold text-slate-400">系统负载</span>
             <div id="sys-load" class="text-sm font-bold text-slate-800 dark:text-slate-200">--</div>
           </div>
-          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-200/40 dark:border-slate-800/40">
+          <div class="bg-slate-100/60 dark:bg-slate-900/40 rounded-xl p-2.5 border border-slate-200/40 dark:border-slate-800/40 min-w-[90px]">
             <span class="text-[10px] uppercase font-semibold text-slate-400">运行时长</span>
             <div id="sys-uptime" class="text-sm font-bold text-slate-800 dark:text-slate-200">-- h</div>
           </div>
         </div>
+      </div>
 
+      <!-- Row 2: High-Precision Audio Oscilloscope & Frequency Spectrum Visualizer -->
+      <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 shadow-inner relative flex flex-col gap-2">
+        <!-- Visualizer Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-800/80">
+          
+          <!-- Mode Switcher -->
+          <div class="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-lg border border-slate-800">
+            <button onclick="setVisualizerMode('dual')" id="vis-mode-dual" class="vis-tab active px-2.5 py-1 text-xs font-semibold rounded-md transition-all bg-cyan-500 text-white shadow-sm flex items-center gap-1">
+              <span>🔀</span> 双模并显
+            </button>
+            <button onclick="setVisualizerMode('spectrum')" id="vis-mode-spectrum" class="vis-tab px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-400 hover:text-slate-200 flex items-center gap-1">
+              <span>📊</span> 声音频率频谱
+            </button>
+            <button onclick="setVisualizerMode('oscilloscope')" id="vis-mode-oscilloscope" class="vis-tab px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-400 hover:text-slate-200 flex items-center gap-1">
+              <span>📈</span> PWM方波示波器
+            </button>
+          </div>
+
+          <!-- Real-time HUD Badges & Web Audio Button -->
+          <div class="flex items-center gap-2 flex-wrap text-xs font-mono">
+            <div id="hud-badges" class="flex items-center gap-1.5 flex-wrap">
+              <span id="hud-freq" class="px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold">频率: 0 Hz</span>
+              <span id="hud-note" class="px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold">音符: --</span>
+              <span id="hud-period" class="hidden sm:inline-block px-2 py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400">周期: -- ms</span>
+              <span id="hud-duty" class="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400">占空比: 0%</span>
+            </div>
+
+            <button id="btn-audio-sync" onclick="toggleWebAudioSync()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-700 text-slate-300 hover:border-cyan-500 transition-all flex items-center gap-1.5 active:scale-95" title="在当前浏览器扬声器同步发声试听">
+              <span id="audio-sync-icon">🔇</span>
+              <span id="audio-sync-text">网页伴奏: 关</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Display Area -->
+        <div class="h-44 sm:h-52 w-full rounded-lg overflow-hidden relative bg-black/40">
+          <canvas id="wave-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+          <div id="canvas-overlay-tag" class="absolute top-2 left-2 pointer-events-none text-[10px] font-mono text-cyan-500/80 bg-slate-950/80 px-2 py-0.5 rounded border border-cyan-900/50">
+            REALTIME DUAL SPECTRUM & OSCILLOSCOPE (60 FPS)
+          </div>
+        </div>
       </div>
     </section>
 
@@ -630,8 +668,29 @@
     let allMelodies = [];
     let currentCategory = 'all';
     let isPlayingAudio = false;
+    let targetFrequency = 0;
+    let targetDuty = 0.1;
+    let currentNote = '';
+    let currentItemName = '';
+    let visualizerMode = 'dual'; // 'dual', 'spectrum', 'oscilloscope'
+    let sseSource = null;
     let pollTimer = null;
     let canvasAnimId = null;
+
+    // Web Audio Synthesizer & Analyser
+    let audioCtx = null;
+    let webOsc = null;
+    let webGain = null;
+    let speakerGain = null;
+    let webAnalyser = null;
+    let isWebAudioMuted = true;
+
+    const NOTES_FREQ = {
+      'C3': 131, 'C#3': 139, 'D3': 147, 'D#3': 156, 'E3': 165, 'F3': 175, 'F#3': 185, 'G3': 196, 'G#3': 208, 'A3': 220, 'A#3': 233, 'B3': 247,
+      'C4': 262, 'C#4': 277, 'D4': 294, 'D#4': 311, 'E4': 330, 'F4': 349, 'F#4': 370, 'G4': 392, 'G#4': 415, 'A4': 440, 'A#4': 466, 'B4': 494,
+      'C5': 523, 'C#5': 554, 'D5': 587, 'D#5': 622, 'E5': 659, 'F5': 698, 'F#5': 740, 'G5': 784, 'G#5': 830, 'A5': 880, 'A#5': 932, 'B5': 988,
+      'C6': 1047, 'C#6': 1109, 'D6': 1175, 'D#6': 1245, 'E6': 1319, 'F6': 1397, 'F#6': 1480, 'G6': 1568, 'G#6': 1661, 'A6': 1760, 'A#6': 1865, 'B6': 1976
+    };
 
     // Toast Manager
     function showToast(msg, icon = '🔔', duration = 2500) {
@@ -676,6 +735,104 @@
       if (tabId === 'history') fetchHistory();
     }
 
+    // Visualizer Mode Switcher
+    function setVisualizerMode(mode) {
+      visualizerMode = mode;
+      document.querySelectorAll('.vis-tab').forEach(b => {
+        b.classList.remove('active', 'bg-cyan-500', 'text-white', 'shadow-sm');
+        b.classList.add('text-slate-400');
+      });
+      const activeBtn = document.getElementById('vis-mode-' + mode);
+      if (activeBtn) {
+        activeBtn.classList.add('active', 'bg-cyan-500', 'text-white', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-400');
+      }
+      const overlay = document.getElementById('canvas-overlay-tag');
+      if (overlay) {
+        if (mode === 'dual') overlay.innerText = 'REALTIME DUAL SPECTRUM & OSCILLOSCOPE (60 FPS)';
+        else if (mode === 'spectrum') overlay.innerText = 'REALTIME FREQUENCY SPECTRUM (FFT 20Hz - 5kHz)';
+        else overlay.innerText = 'REALTIME PWM SQUARE OSCILLOSCOPE (GPIO18 PWM0)';
+      }
+    }
+
+    // Web Audio Engine (Authentic Browser Synthesis & DSP)
+    function initWebAudio() {
+      if (!audioCtx) {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+            webAnalyser = audioCtx.createAnalyser();
+            webAnalyser.fftSize = 1024;
+            webAnalyser.smoothingTimeConstant = 0.8;
+
+            webOsc = audioCtx.createOscillator();
+            webOsc.type = 'square';
+            webOsc.frequency.setValueAtTime(440, audioCtx.currentTime);
+
+            webGain = audioCtx.createGain();
+            webGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            webOsc.connect(webGain);
+            webGain.connect(webAnalyser);
+
+            speakerGain = audioCtx.createGain();
+            speakerGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            webOsc.connect(speakerGain);
+            speakerGain.connect(audioCtx.destination);
+
+            webOsc.start();
+          }
+        } catch (e) {
+          console.warn('Web Audio init failed:', e);
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function toggleWebAudioSync() {
+      initWebAudio();
+      isWebAudioMuted = !isWebAudioMuted;
+      const icon = document.getElementById('audio-sync-icon');
+      const text = document.getElementById('audio-sync-text');
+      const btn = document.getElementById('btn-audio-sync');
+      if (isWebAudioMuted) {
+        if (speakerGain && audioCtx) {
+          speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
+        }
+        icon.innerText = '🔇';
+        text.innerText = '网页伴奏: 关';
+        btn.classList.remove('bg-cyan-500', 'text-white', 'border-cyan-400');
+        btn.classList.add('bg-slate-900', 'text-slate-300', 'border-slate-700');
+        showToast('已关闭网页伴奏 (仅硬件发声)', '🔇');
+      } else {
+        if (speakerGain && audioCtx) {
+          const vol = (targetFrequency > 0 && isPlayingAudio) ? 0.12 : 0;
+          speakerGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.01);
+        }
+        icon.innerText = '🔊';
+        text.innerText = '网页伴奏: 开';
+        btn.classList.add('bg-cyan-500', 'text-white', 'border-cyan-400');
+        btn.classList.remove('bg-slate-900', 'text-slate-300', 'border-slate-700');
+        showToast('已开启网页伴奏 (浏览器同步发声)', '🔊');
+      }
+    }
+
+    function syncWebAudioNodes(freq, isPlaying) {
+      if (!audioCtx || !webOsc) return;
+      if (freq > 0 && isPlaying) {
+        webOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.005);
+        if (webGain) webGain.gain.setTargetAtTime(0.5, audioCtx.currentTime, 0.005);
+        if (speakerGain && !isWebAudioMuted) {
+          speakerGain.gain.setTargetAtTime(0.12, audioCtx.currentTime, 0.005);
+        }
+      } else {
+        if (webGain) webGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.005);
+        if (speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.005);
+      }
+    }
+
     // Token Helper
     function getAuthHeaders() {
       const token = localStorage.getItem('buzzer_api_token') || '';
@@ -701,13 +858,13 @@
       document.getElementById('global-volume-val').innerText = val + '%';
     }
 
-    // Stop Handler
+    // Stop Handler (Instant Stop & Optimistic UI Reset)
     async function triggerStop() {
+      handleStatusUpdate({ is_playing: false, frequency: 0, duty: 0, note: '', current_item: '' });
       try {
         const res = await fetch('/api/stop', { method: 'POST', headers: getAuthHeaders() });
         if (res.ok) {
           showToast('已停止播放并静音', '🛑');
-          fetchStatus();
         } else {
           showToast('停止请求失败: ' + res.status, '⚠️');
         }
@@ -716,87 +873,426 @@
       }
     }
 
-    // Fetch Status & Metrics
+    // Real-Time SSE Stream Listener
+    function initSSE() {
+      if (!window.EventSource) {
+        pollTimer = setInterval(fetchStatus, 400);
+        return;
+      }
+      if (sseSource) {
+        try { sseSource.close(); } catch (e) {}
+      }
+      sseSource = new EventSource('/api/events');
+
+      sseSource.onopen = () => {
+        const badge = document.getElementById('conn-badge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>实时流已连接</span>`;
+          badge.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60';
+        }
+      };
+
+      sseSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          handleStatusUpdate(data);
+        } catch (err) {}
+      };
+
+      sseSource.onerror = () => {
+        const badge = document.getElementById('conn-badge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span><span>连接重试中</span>`;
+          badge.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60';
+        }
+      };
+    }
+
+    // Central Status Handler (Millisecond Reaction)
+    function handleStatusUpdate(data) {
+      isPlayingAudio = Boolean(data.is_playing);
+      targetFrequency = Number(data.frequency) || 0;
+      targetDuty = Number(data.duty) || 0.1;
+      currentNote = data.note || (targetFrequency > 0 ? (targetFrequency + 'Hz') : '');
+      currentItemName = data.current_item || '';
+
+      const statusText = document.getElementById('status-text');
+      const statusIcon = document.getElementById('status-icon');
+      const songTitle = document.getElementById('current-song-title');
+      const toneDetail = document.getElementById('current-tone-detail');
+      const radarRing = document.getElementById('radar-ring');
+      const statusGlow = document.getElementById('status-glow');
+      const noteBadge = document.getElementById('live-note-badge');
+
+      const hudFreq = document.getElementById('hud-freq');
+      const hudNote = document.getElementById('hud-note');
+      const hudPeriod = document.getElementById('hud-period');
+      const hudDuty = document.getElementById('hud-duty');
+
+      if (isPlayingAudio && targetFrequency > 0) {
+        statusText.innerText = '正在发声中 (Playing)';
+        statusText.className = 'text-sm font-bold text-cyan-600 dark:text-cyan-400';
+        statusIcon.innerText = '🎵';
+        songTitle.innerText = currentItemName || (currentNote ? `${currentNote} (${targetFrequency}Hz)` : '硬件音频发声中');
+        toneDetail.innerText = `PWM0: ${targetFrequency} Hz | 音符: ${currentNote || '--'} | 占空比: ${(targetDuty * 100).toFixed(1)}%`;
+        radarRing.classList.remove('hidden');
+        statusGlow.className = 'relative flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan-100 dark:bg-cyan-950/80 text-2xl border border-cyan-400 shadow-lg shadow-cyan-500/30 flex-shrink-0';
+        
+        if (noteBadge) {
+          noteBadge.innerText = currentNote || `${targetFrequency}Hz`;
+          noteBadge.classList.remove('hidden');
+        }
+
+        const periodMs = (1000 / targetFrequency).toFixed(2);
+        hudFreq.innerText = `频率: ${targetFrequency} Hz`;
+        hudNote.innerText = `音符: ${currentNote || '--'}`;
+        hudPeriod.innerText = `周期: ${periodMs} ms`;
+        hudDuty.innerText = `占空比: ${(targetDuty * 100).toFixed(0)}%`;
+      } else {
+        statusText.innerText = '空闲静音中 (Idle)';
+        statusText.className = 'text-sm font-bold text-slate-500 dark:text-slate-400';
+        statusIcon.innerText = '⏸️';
+        songTitle.innerText = '就绪状态';
+        toneDetail.innerText = 'PWM0: 0 Hz | 占空比: 0%';
+        radarRing.classList.add('hidden');
+        statusGlow.className = 'relative flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl border border-slate-200 dark:border-slate-700 flex-shrink-0';
+        
+        if (noteBadge) noteBadge.classList.add('hidden');
+
+        hudFreq.innerText = `频率: 0 Hz`;
+        hudNote.innerText = `音符: --`;
+        hudPeriod.innerText = `周期: -- ms`;
+        hudDuty.innerText = `占空比: 0%`;
+      }
+
+      syncWebAudioNodes(targetFrequency, isPlayingAudio);
+
+      if (data.system) {
+        if (data.system.temperature !== undefined) document.getElementById('sys-temp').innerText = data.system.temperature + ' °C';
+        if (data.system.load_avg) document.getElementById('sys-load').innerText = data.system.load_avg[0];
+        if (data.system.uptime_hours !== undefined) document.getElementById('sys-uptime').innerText = data.system.uptime_hours + ' h';
+      }
+    }
+
+    // Fallback Poll for Status
     async function fetchStatus() {
       try {
         const res = await fetch('/api/status');
         if (!res.ok) return;
         const data = await res.json();
-        
-        isPlayingAudio = Boolean(data.is_playing);
-        const statusText = document.getElementById('status-text');
-        const statusIcon = document.getElementById('status-icon');
-        const songTitle = document.getElementById('current-song-title');
-        const toneDetail = document.getElementById('current-tone-detail');
-        const radarRing = document.getElementById('radar-ring');
-        const statusGlow = document.getElementById('status-glow');
-
-        if (isPlayingAudio) {
-          statusText.innerText = '正在发声中 (Playing)';
-          statusText.className = 'text-sm font-bold text-cyan-600 dark:text-cyan-400';
-          statusIcon.innerText = '🎵';
-          songTitle.innerText = data.current_item || '硬件音频输出中';
-          toneDetail.innerText = `PWM0: ${data.frequency || 0} Hz | 占空比: ${(data.duty * 100).toFixed(1)}%`;
-          radarRing.classList.remove('hidden');
-          statusGlow.className = 'relative flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan-100 dark:bg-cyan-950/80 text-2xl border border-cyan-400 shadow-lg shadow-cyan-500/30';
-        } else {
-          statusText.innerText = '空闲静音中 (Idle)';
-          statusText.className = 'text-sm font-bold text-slate-500 dark:text-slate-400';
-          statusIcon.innerText = '⏸️';
-          songTitle.innerText = '就绪状态';
-          toneDetail.innerText = 'PWM0: 0 Hz | 占空比: 0%';
-          radarRing.classList.add('hidden');
-          statusGlow.className = 'relative flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl border border-slate-200 dark:border-slate-700';
-        }
-
-        // System metrics
-        if (data.system) {
-          document.getElementById('sys-temp').innerText = (data.system.temperature || '--') + ' °C';
-          document.getElementById('sys-load').innerText = (data.system.load_avg ? data.system.load_avg[0] : '--');
-          document.getElementById('sys-uptime').innerText = (data.system.uptime_hours || '--') + ' h';
-        }
-
-      } catch (e) {
-        console.error('Status poll error', e);
-      }
+        handleStatusUpdate(data);
+      } catch (e) {}
     }
 
-    // Audio Oscilloscope Waveform Animation
+    // High-Resolution Audio Oscilloscope & Spectrum Drawing Engine (60 FPS)
     function initWaveform() {
       const canvas = document.getElementById('wave-canvas');
+      if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let step = 0;
+      let stepPhase = 0;
+      let smoothFreq = 0;
+      let smoothDuty = 0.1;
 
       function resize() {
-        canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
-        canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = Math.floor(rect.width * (window.devicePixelRatio || 1));
+        canvas.height = Math.floor(rect.height * (window.devicePixelRatio || 1));
       }
       window.addEventListener('resize', resize);
       resize();
+
+      const F_MIN = 20;
+      const F_MAX = 5000;
+      const LOG_MIN = Math.log10(F_MIN);
+      const LOG_MAX = Math.log10(F_MAX);
+
+      function freqToX(f, width) {
+        const clamped = Math.max(F_MIN, Math.min(F_MAX, f));
+        return ((Math.log10(clamped) - LOG_MIN) / (LOG_MAX - LOG_MIN)) * width;
+      }
+
+      function xToFreq(x, width) {
+        const norm = Math.max(0, Math.min(1, x / width));
+        return Math.pow(10, LOG_MIN + norm * (LOG_MAX - LOG_MIN));
+      }
+
+      function drawOscilloscopeGrid(ctx, x0, y0, w, h, isSpectrum) {
+        ctx.save();
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 4]);
+
+        for (let i = 1; i < 4; i++) {
+          const y = y0 + (h / 4) * i;
+          ctx.beginPath();
+          ctx.moveTo(x0, y);
+          ctx.lineTo(x0 + w, y);
+          ctx.stroke();
+        }
+
+        if (isSpectrum) {
+          const ticks = [50, 100, 250, 500, 1000, 2000, 4000];
+          ctx.fillStyle = '#64748b';
+          ctx.font = `${Math.max(9, Math.floor(9 * (window.devicePixelRatio || 1)))}px monospace`;
+          ctx.textAlign = 'center';
+          ticks.forEach(f => {
+            const x = x0 + freqToX(f, w);
+            ctx.beginPath();
+            ctx.moveTo(x, y0);
+            ctx.lineTo(x, y0 + h - 14);
+            ctx.stroke();
+            const label = f >= 1000 ? `${f/1000}k` : `${f}`;
+            ctx.fillText(label, x, y0 + h - 3);
+          });
+        } else {
+          for (let i = 1; i < 8; i++) {
+            const x = x0 + (w / 8) * i;
+            ctx.beginPath();
+            ctx.moveTo(x, y0);
+            ctx.lineTo(x, y0 + h);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      // 1. Draw Spectrum (声音频率频谱波形)
+      function drawSpectrum(ctx, x0, y0, w, h, activeFreq, duty, isPlaying) {
+        drawOscilloscopeGrid(ctx, x0, y0, w, h, true);
+
+        ctx.save();
+        ctx.fillStyle = '#06b6d4';
+        ctx.font = `bold ${Math.max(9, Math.floor(9 * (window.devicePixelRatio || 1)))}px monospace`;
+        ctx.textAlign = 'left';
+        ctx.fillText('频谱 (FFT 20Hz-5kHz 频率能量分布)', x0 + 8, y0 + 14);
+        ctx.restore();
+
+        const baseY = y0 + h - 16;
+        const availableHeight = h - 32;
+
+        if (!isPlaying || activeFreq < 20) {
+          ctx.beginPath();
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1.5;
+          for (let x = 0; x <= w; x += 4) {
+            const noise = Math.sin(x * 0.1 + stepPhase) * 2 + Math.random() * 1.5;
+            const y = baseY - noise;
+            if (x === 0) ctx.moveTo(x0 + x, y);
+            else ctx.lineTo(x0 + x, y);
+          }
+          ctx.stroke();
+          return;
+        }
+
+        const f0 = activeFreq;
+        const harmonics = [
+          { f: f0, amp: 1.0 },
+          { f: f0 * 2, amp: Math.abs(Math.sin(2 * Math.PI * duty)) * 0.4 },
+          { f: f0 * 3, amp: Math.abs(Math.sin(3 * Math.PI * duty)) * 0.35 + 0.33 },
+          { f: f0 * 4, amp: Math.abs(Math.sin(4 * Math.PI * duty)) * 0.25 },
+          { f: f0 * 5, amp: Math.abs(Math.sin(5 * Math.PI * duty)) * 0.2 + 0.2 },
+          { f: f0 * 7, amp: 0.14 }
+        ];
+
+        const grad = ctx.createLinearGradient(x0, y0, x0, baseY);
+        grad.addColorStop(0, 'rgba(6, 182, 212, 0.75)');
+        grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.4)');
+        grad.addColorStop(1, 'rgba(15, 23, 42, 0.05)');
+
+        ctx.beginPath();
+        ctx.moveTo(x0, baseY);
+
+        const peakPos = { x: x0 + freqToX(f0, w), y: baseY };
+
+        for (let px = 0; px <= w; px += 3) {
+          const f = xToFreq(px, w);
+          let energy = 0.02 + Math.sin(px * 0.05 + stepPhase) * 0.01;
+
+          harmonics.forEach(hm => {
+            if (hm.f >= F_MIN && hm.f <= F_MAX) {
+              const df = Math.abs(f - hm.f) / (hm.f * 0.06 + 8);
+              const peak = hm.amp / (1 + df * df * 4);
+              energy += peak * 0.85;
+            }
+          });
+
+          energy = Math.min(1.0, energy);
+          const py = baseY - energy * availableHeight;
+          ctx.lineTo(x0 + px, py);
+
+          if (Math.abs(f - f0) < (f0 * 0.04 + 5)) {
+            if (py < peakPos.y) {
+              peakPos.y = py;
+              peakPos.x = x0 + px;
+            }
+          }
+        }
+
+        ctx.lineTo(x0 + w, baseY);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.save();
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 8 * (window.devicePixelRatio || 1);
+        ctx.beginPath();
+
+        for (let px = 0; px <= w; px += 3) {
+          const f = xToFreq(px, w);
+          let energy = 0.02 + Math.sin(px * 0.05 + stepPhase) * 0.01;
+          harmonics.forEach(hm => {
+            if (hm.f >= F_MIN && hm.f <= F_MAX) {
+              const df = Math.abs(f - hm.f) / (hm.f * 0.06 + 8);
+              const peak = hm.amp / (1 + df * df * 4);
+              energy += peak * 0.85;
+            }
+          });
+          energy = Math.min(1.0, energy);
+          const py = baseY - energy * availableHeight;
+          if (px === 0) ctx.moveTo(x0 + px, py);
+          else ctx.lineTo(x0 + px, py);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // Fundamental Peak Marker Pin & Tag
+        if (peakPos.x >= x0 && peakPos.x <= x0 + w) {
+          ctx.save();
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#06b6d4';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(peakPos.x, peakPos.y, 4 * (window.devicePixelRatio || 1), 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath();
+          ctx.moveTo(peakPos.x, peakPos.y);
+          ctx.lineTo(peakPos.x, baseY);
+          ctx.stroke();
+
+          const tagText = `▲ ${Math.round(f0)} Hz ${currentNote ? '[' + currentNote + ']' : ''} (基频)`;
+          ctx.font = `bold ${Math.max(10, Math.floor(10 * (window.devicePixelRatio || 1)))}px monospace`;
+          ctx.textAlign = peakPos.x > (x0 + w - 100) ? 'right' : (peakPos.x < x0 + 100 ? 'left' : 'center');
+          ctx.fillStyle = '#38bdf8';
+          ctx.shadowColor = '#0284c7';
+          ctx.shadowBlur = 6;
+          const badgeY = Math.max(y0 + 20, peakPos.y - 10);
+          ctx.fillText(tagText, peakPos.x, badgeY);
+          ctx.restore();
+        }
+      }
+
+      // 2. Draw PWM Square Wave Oscilloscope (时域PWM方波示波器)
+      function drawOscilloscope(ctx, x0, y0, w, h, activeFreq, duty, isPlaying) {
+        drawOscilloscopeGrid(ctx, x0, y0, w, h, false);
+
+        const midY = y0 + h / 2;
+        ctx.save();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x0, midY);
+        ctx.lineTo(x0 + w, midY);
+        ctx.stroke();
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = `bold ${Math.max(9, Math.floor(9 * (window.devicePixelRatio || 1)))}px monospace`;
+        ctx.textAlign = 'left';
+        ctx.fillText('示波器 (PWM0 方波脉冲)', x0 + 8, y0 + 14);
+        ctx.restore();
+
+        if (!isPlaying || activeFreq < 20) {
+          ctx.beginPath();
+          ctx.strokeStyle = '#64748b';
+          ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
+          for (let x = 0; x <= w; x += 6) {
+            const y = midY + (Math.random() - 0.5) * 1.5;
+            if (x === 0) ctx.moveTo(x0 + x, y);
+            else ctx.lineTo(x0 + x, y);
+          }
+          ctx.stroke();
+          return;
+        }
+
+        // Calibrated 8ms oscilloscope time window:
+        // Screen shows (activeFreq * 0.008) full periods!
+        // At 125 Hz: 1 period.
+        // At 500 Hz: 4 periods.
+        // At 1000 Hz: 8 periods.
+        // Dense pulses for high frequencies, wide pulses for low frequencies.
+        const timeWindowSec = 0.008;
+        const totalPeriods = activeFreq * timeWindowSec;
+        const periodPx = w / totalPeriods;
+        const amp = (h * 0.36);
+
+        ctx.save();
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2.5 * (window.devicePixelRatio || 1);
+        ctx.shadowColor = '#059669';
+        ctx.shadowBlur = 8 * (window.devicePixelRatio || 1);
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+
+        const phaseOffset = (stepPhase * 0.15) % 1;
+
+        for (let x = 0; x <= w; x += 2) {
+          const tNorm = ((x / periodPx) + phaseOffset) % 1;
+          const isHigh = tNorm < duty;
+          let yVal = isHigh ? 1 : -1;
+
+          const edgeDist = Math.min(Math.abs(tNorm - 0), Math.abs(tNorm - duty));
+          if (edgeDist < 0.02) {
+            const edgeFactor = edgeDist / 0.02;
+            const ring = Math.sin(edgeDist * 300) * 0.15;
+            yVal = yVal * edgeFactor + ring;
+          }
+
+          const y = midY - (yVal * amp);
+          if (x === 0) ctx.moveTo(x0 + x, y);
+          else ctx.lineTo(x0 + x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
 
       function draw() {
         const w = canvas.width;
         const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
-        ctx.lineWidth = 2.5 * window.devicePixelRatio;
-        ctx.strokeStyle = isPlayingAudio ? '#06b6d4' : '#64748b';
-        ctx.beginPath();
-
-        const midY = h / 2;
-        const amp = isPlayingAudio ? (h * 0.35) : 0;
-        const freq = isPlayingAudio ? 0.08 : 0.02;
-
-        for (let x = 0; x < w; x += 4) {
-          // Square/Sine blend for buzzer style
-          const rawSin = Math.sin((x * freq) + step);
-          const y = midY + (amp * (rawSin > 0 ? 0.8 : -0.8));
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+        if (isPlayingAudio && targetFrequency > 0) {
+          smoothFreq += (targetFrequency - smoothFreq) * 0.35;
+          smoothDuty += (targetDuty - smoothDuty) * 0.25;
+        } else {
+          smoothFreq += (0 - smoothFreq) * 0.2;
+          smoothDuty = 0.1;
         }
-        ctx.stroke();
 
-        step += isPlayingAudio ? 0.25 : 0.02;
+        const isActivelyPlaying = isPlayingAudio && smoothFreq > 15;
+
+        if (visualizerMode === 'dual') {
+          const halfH = Math.floor(h / 2);
+          drawSpectrum(ctx, 0, 0, w, halfH, smoothFreq, smoothDuty, isActivelyPlaying);
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, halfH);
+          ctx.lineTo(w, halfH);
+          ctx.stroke();
+          drawOscilloscope(ctx, 0, halfH, w, h - halfH, smoothFreq, smoothDuty, isActivelyPlaying);
+        } else if (visualizerMode === 'spectrum') {
+          drawSpectrum(ctx, 0, 0, w, h, smoothFreq, smoothDuty, isActivelyPlaying);
+        } else {
+          drawOscilloscope(ctx, 0, 0, w, h, smoothFreq, smoothDuty, isActivelyPlaying);
+        }
+
+        stepPhase += isActivelyPlaying ? 0.3 : 0.03;
         canvasAnimId = requestAnimationFrame(draw);
       }
       draw();
@@ -862,6 +1358,7 @@
     }
 
     async function playPresetMelody(id) {
+      initWebAudio();
       const vol = parseInt(document.getElementById('global-volume').value) || 25;
       showToast(`正在播放: ${id}...`, '🎵');
       try {
@@ -873,18 +1370,18 @@
         const data = await res.json();
         if (!res.ok) {
           showToast('播放失败: ' + (data.message || data.error || res.status), '❌');
-        } else {
-          fetchStatus();
         }
       } catch (e) {
         showToast('请求异常: ' + e.message, '❌');
       }
     }
 
-    // Piano key player
+    // Piano key player (Instant UI Response & Zero-Latency Feedback)
     async function playKeyNote(note) {
+      initWebAudio();
       const dur = parseFloat(document.getElementById('piano-duration').value) || 0.3;
       const vol = parseInt(document.getElementById('global-volume').value) || 25;
+      const freq = NOTES_FREQ[note] || 440;
       
       const keyEl = document.querySelector(`[data-note="${note}"]`);
       if (keyEl) {
@@ -892,6 +1389,15 @@
         setTimeout(() => keyEl.classList.remove('active'), 180);
       }
       document.getElementById('piano-last-note').innerText = `触发音符: ${note} (${dur}s)`;
+
+      // Optimistic instant feedback (< 0ms latency!)
+      handleStatusUpdate({
+        is_playing: true,
+        frequency: freq,
+        duty: Math.min(0.3, vol / 100 * 0.3),
+        note: note,
+        current_item: `按键演奏: ${note}`
+      });
 
       try {
         await fetch('/api/play/melody', {
@@ -902,7 +1408,6 @@
             volume: vol
           })
         });
-        fetchStatus();
       } catch (e) {}
     }
 
@@ -914,11 +1419,22 @@
     }
 
     async function playCustomTone() {
+      initWebAudio();
       const freq = parseFloat(document.getElementById('tone-freq-num').value) || 1000;
       const dur = parseFloat(document.getElementById('tone-dur-range').value) || 0.5;
       const vol = parseInt(document.getElementById('tone-vol-range').value) || 25;
 
       showToast(`播放单音: ${freq} Hz (${dur}s)`, '🔊');
+
+      // Optimistic instant feedback
+      handleStatusUpdate({
+        is_playing: true,
+        frequency: freq,
+        duty: Math.min(0.3, vol / 100 * 0.3),
+        note: `${Math.round(freq)}Hz`,
+        current_item: `单音测试: ${Math.round(freq)}Hz`
+      });
+
       try {
         const res = await fetch('/api/play/tone', {
           method: 'POST',
@@ -928,8 +1444,6 @@
         if (!res.ok) {
           const d = await res.json();
           showToast('播放错误: ' + (d.message || d.error), '❌');
-        } else {
-          fetchStatus();
         }
       } catch (e) {
         showToast('请求异常: ' + e.message, '❌');
@@ -975,6 +1489,7 @@
     document.getElementById('composer-json').addEventListener('input', updateComposerFeedback);
 
     async function playCustomMelody() {
+      initWebAudio();
       const notes = updateComposerFeedback();
       if (!notes) {
         showToast('请修正音符 JSON 语法错误后再试', '⚠️');
@@ -1049,13 +1564,15 @@
     window.addEventListener('DOMContentLoaded', () => {
       initWaveform();
       loadMelodies();
+      initSSE();
       fetchStatus();
       updateComposerFeedback();
 
       const savedToken = localStorage.getItem('buzzer_api_token');
       if (savedToken) document.getElementById('api-token-input').value = savedToken;
 
-      pollTimer = setInterval(fetchStatus, 1500);
+      pollTimer = setInterval(fetchStatus, 2500);
+      window.addEventListener('pointerdown', () => { initWebAudio(); }, { once: true });
     });
   </script>
 </body>
