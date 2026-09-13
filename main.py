@@ -28,9 +28,17 @@ def on_buzzer_status_change(status_dict):
     if main_event_loop and not main_event_loop.is_closed():
         for q in list(sse_subscribers):
             try:
-                main_event_loop.call_soon_threadsafe(
-                    lambda queue=q, data=status_dict: queue.put_nowait(data) if not queue.full() else None
-                )
+                def _push(queue=q, data=status_dict):
+                    if queue.full():
+                        try:
+                            queue.get_nowait()
+                        except Exception:
+                            pass
+                    try:
+                        queue.put_nowait(data)
+                    except Exception:
+                        pass
+                main_event_loop.call_soon_threadsafe(_push)
             except Exception:
                 pass
 
@@ -216,7 +224,7 @@ async def status():
 @app.get('/api/events')
 async def events_stream(request: Request):
     """Server-Sent Events (SSE) 实时毫秒级推送蜂鸣器频率/波形/音符及系统指标"""
-    q = asyncio.Queue(maxsize=50)
+    q = asyncio.Queue(maxsize=500)
     sse_subscribers.add(q)
 
     # 初次连接时推送一次当前完整状态
