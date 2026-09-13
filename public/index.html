@@ -300,12 +300,12 @@
             </button>
           </div>
 
-          <!-- Real-time HUD Badges (移动端 2x2 稳固排列，PC端单行展开，绝不截断) -->
-          <div id="hud-badges" class="grid grid-cols-2 sm:flex sm:items-center gap-1.5 w-full sm:w-auto text-xs font-mono">
-            <span id="hud-freq" class="text-center px-2 py-1 sm:py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold font-mono tabular-nums whitespace-nowrap sm:w-[112px] flex items-center justify-center">频率: 0 Hz</span>
-            <span id="hud-note" class="text-center px-2 py-1 sm:py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold font-mono tabular-nums whitespace-nowrap sm:w-[85px] flex items-center justify-center">音符: --</span>
-            <span id="hud-period" class="text-center px-2 py-1 sm:py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400 font-mono tabular-nums whitespace-nowrap sm:w-[120px] flex items-center justify-center">周期: -- ms</span>
-            <span id="hud-duty" class="text-center px-2 py-1 sm:py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono tabular-nums whitespace-nowrap sm:w-[92px] flex items-center justify-center">占空比: 0%</span>
+          <!-- Real-time HUD Badges (4等分单行紧凑自适应，告别臃肿与截断) -->
+          <div id="hud-badges" class="grid grid-cols-4 gap-1 sm:gap-1.5 w-full sm:w-auto text-[11px] sm:text-xs font-mono">
+            <span id="hud-freq" class="text-center px-1 sm:px-2.5 py-1 sm:py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-400 font-bold font-mono tabular-nums whitespace-nowrap sm:w-[110px] flex items-center justify-center">频率: 0 Hz</span>
+            <span id="hud-note" class="text-center px-1 sm:px-2 py-1 sm:py-0.5 rounded bg-indigo-950/80 border border-indigo-800/80 text-indigo-400 font-bold font-mono tabular-nums whitespace-nowrap sm:w-[82px] flex items-center justify-center">音符: --</span>
+            <span id="hud-period" class="text-center px-1 sm:px-2.5 py-1 sm:py-0.5 rounded bg-purple-950/80 border border-purple-800/80 text-purple-400 font-mono tabular-nums whitespace-nowrap sm:w-[116px] flex items-center justify-center">周期: -- ms</span>
+            <span id="hud-duty" class="text-center px-1 sm:px-2 py-1 sm:py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono tabular-nums whitespace-nowrap sm:w-[88px] flex items-center justify-center">占空比: 0%</span>
           </div>
         </div>
 
