@@ -2,6 +2,8 @@
 
 树莓派 GPIO18（硬件 PWM）驱动的蜂鸣器/喇叭播放 API。其他服务（飞书 bot、Web 前端、自动化脚本）通过 HTTP 即可触发播放旋律、提示音或自定义音符序列。
 
+![Pi Buzzer Console 控制台预览](docs/images/web_console.jpg)
+
 ---
 
 ## 目录
@@ -20,6 +22,8 @@
 ## Web 控制台 (Web Console)
 
 本项目内置了类似 `pi_led_api` 的 Apple 风格毛玻璃极简现代 **Web 控制台**，部署后直接在局域网浏览器打开即可使用：
+
+![Pi Buzzer Console 控制台界面](docs/images/web_console.jpg)
 
 * **访问地址**：`http://<树莓派IP>:8001/` 或 `http://127.0.0.1:8001/`
 * **核心功能模块**：
