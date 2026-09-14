@@ -21,7 +21,7 @@
 
 ## Web 控制台 (Web Console)
 
-本项目内置了类似 `pi_led_api` 的 Apple 风格毛玻璃极简现代 **Web 控制台**，部署后直接在局域网浏览器打开即可使用：
+本项目内置了精致的毛玻璃极简现代 **Web 控制台**，部署后直接在局域网浏览器打开即可使用：
 
 ![Pi Buzzer Console 控制台界面](docs/images/web_console.jpg)
 
