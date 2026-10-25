@@ -223,9 +223,9 @@ def get_system_metrics():
 
 
 def resolve_duty(volume=None, duty=None):
-    """音量百分比(0-100) → 占空比；显式 duty 优先。"""
+    """音量百分比(0-100) → 占空比；显式 duty 优先（钳制到 0~1 合法区间）。"""
     if duty is not None:
-        return duty
+        return max(0.0, min(float(duty), 1.0))
     if volume is not None:
         return min(MAX_DUTY, max(0.005, volume / 100 * MAX_DUTY))
     return None

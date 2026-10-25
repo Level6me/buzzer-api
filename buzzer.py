@@ -88,6 +88,10 @@ class Buzzer:
         period_ns = int(1e9 / frequency)
         duty_ns = int(period_ns * duty)
         try:
+            # 内核要求 duty_cycle <= period：切换到更高频率前必须先把
+            # duty_cycle 清零，否则写 period 会因 EINVAL 失败并沿用旧周期
+            with open(f'{PWM0}/duty_cycle', 'w') as f:
+                f.write('0')
             with open(f'{PWM0}/period', 'w') as f:
                 f.write(str(period_ns))
             with open(f'{PWM0}/duty_cycle', 'w') as f:
