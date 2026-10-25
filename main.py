@@ -61,10 +61,13 @@ def find_device_by_token(token: str) -> Optional[dict]:
     """通过 Token 匹配设备；若配置了环境变量 Token 且匹配，返回虚拟环境变量设备。"""
     if not token:
         return None
+    token_bytes = token.encode('utf-8')
     for dev in devices_cache:
-        if dev.get('token') == token:
+        dev_token = dev.get('token')
+        # 常数时间比较，避免逐字符短路泄露匹配前缀长度
+        if dev_token and secrets.compare_digest(token_bytes, str(dev_token).encode('utf-8')):
             return dev
-    if API_TOKEN and token == API_TOKEN:
+    if API_TOKEN and secrets.compare_digest(token_bytes, API_TOKEN.encode('utf-8')):
         return {
             'id': 'env_master',
             'name': '系统主Token (Env)',
